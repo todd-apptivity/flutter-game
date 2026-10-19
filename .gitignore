@@ -89,3 +89,5 @@ coverage/
 # Node tooling (tool/drive.mjs)
 tool/node_modules/
 tool/package-lock.json
+
+.env

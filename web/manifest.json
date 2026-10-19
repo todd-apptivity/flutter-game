@@ -2,7 +2,7 @@
     "name": "Rogue Agent",
     "short_name": "Rogue Agent",
     "start_url": ".",
-    "display": "standalone",
+    "display": "browser",
     "background_color": "#14151A",
     "theme_color": "#14151A",
     "description": "Rogue Agent — a game in development. Coming soon.",
