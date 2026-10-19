@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "macOS (debug)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "macos"
+    },
+    {
+      "name": "Chrome (debug)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome"
+    },
+    {
+      "name": "macOS (profile — check FPS)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "macos",
+      "flutterMode": "profile"
+    }
+  ]
+}
