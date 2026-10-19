@@ -1,0 +1,15 @@
+# Cloudflare Worker (static assets only — no server code).
+#
+# `rogue-agent` is a Worker, not a Pages project: the custom domain
+# rogue-agent.roughedge.work is bound to this service. Deploys come from
+# .github/workflows/deploy.yml via `wrangler deploy`.
+#
+# `directory` is the Flutter release output. Header rules in web/_headers are
+# copied into it by `flutter build web` and applied by Workers Assets.
+name = "rogue-agent"
+compatibility_date = "2026-10-19"
+
+[assets]
+directory = "./build/web"
+# Deep links (and a reload on any route) serve index.html instead of 404ing.
+not_found_handling = "single-page-application"

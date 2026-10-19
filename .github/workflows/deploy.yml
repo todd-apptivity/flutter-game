@@ -11,11 +11,8 @@ permissions:
 
 concurrency:
   # One deploy at a time per branch; superseded pushes are cancelled.
-  group: pages-${{ github.ref }}
+  group: deploy-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  CF_PAGES_PROJECT: rogue-agent
 
 jobs:
   build:
@@ -41,18 +38,17 @@ jobs:
       - name: Build web
         run: flutter build web --release --dart-define=BUILD_REF=${GITHUB_SHA::7}
 
-      # Direct upload: this does not consume the Pages build quota.
-      # Pull requests get a preview URL; main goes to production.
+      # `rogue-agent` is a Worker with static assets (not a Pages project), so
+      # this is `wrangler deploy` against wrangler.toml, which points [assets]
+      # at build/web. Pull requests are built and tested but not deployed —
+      # a Worker deploy goes straight to production.
       - name: Deploy
-        # Fork PRs have no access to secrets — build and test them, skip deploy.
-        if: >-
-          github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name != 'pull_request'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: >-
-            pages deploy build/web
-            --project-name=${{ env.CF_PAGES_PROJECT }}
-            --branch=${{ github.head_ref || github.ref_name }}
+          # The action defaults to wrangler 3.x, which predates stable
+          # static-assets support.
+          wranglerVersion: '4'
+          command: deploy
