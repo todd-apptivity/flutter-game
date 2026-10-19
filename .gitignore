@@ -1,3 +1,5 @@
+.env
+
 # FVM Version Cache
 .fvm/
 
@@ -90,4 +92,4 @@ coverage/
 tool/node_modules/
 tool/package-lock.json
 
-.env
+
