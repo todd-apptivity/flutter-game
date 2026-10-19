@@ -1,0 +1,58 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One deploy at a time per branch; superseded pushes are cancelled.
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CF_PAGES_PROJECT: rogue-agent
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter --version
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+      # BUILD_REF is rendered on the landing page, so the deployed build can be
+      # matched to the commit that produced it.
+      - name: Build web
+        run: flutter build web --release --dart-define=BUILD_REF=${GITHUB_SHA::7}
+
+      # Direct upload: this does not consume the Pages build quota.
+      # Pull requests get a preview URL; main goes to production.
+      - name: Deploy
+        # Fork PRs have no access to secrets — build and test them, skip deploy.
+        if: >-
+          github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy build/web
+            --project-name=${{ env.CF_PAGES_PROJECT }}
+            --branch=${{ github.head_ref || github.ref_name }}

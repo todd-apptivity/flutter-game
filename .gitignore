@@ -82,7 +82,10 @@ app.*.map.json
 **/macos/Flutter/ephemeral/
 
 # Web
-lib/generated_plugin_registrant.dart
 
 # Coverage
 coverage/
+
+# Node tooling (tool/drive.mjs)
+tool/node_modules/
+tool/package-lock.json

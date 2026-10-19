@@ -1,0 +1,33 @@
+# Cloudflare Pages header rules. Copied verbatim into build/web by
+# `flutter build web`, then consumed by Pages at deploy time.
+#
+# Flutter web does NOT content-hash its output filenames: main.dart.js,
+# assets/*, and canvaskit/* keep the same URLs across deploys. So nothing here
+# can be marked `immutable` — a long max-age would pin users to an old build.
+# Everything revalidates against Cloudflare's ETag instead (a cheap 304), and
+# the service-worker entry points are never cached at all.
+
+/index.html
+  Cache-Control: no-cache
+/flutter_bootstrap.js
+  Cache-Control: no-cache
+/flutter_service_worker.js
+  Cache-Control: no-cache
+/version.json
+  Cache-Control: no-cache
+/main.dart.js
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=0, must-revalidate
+/canvaskit/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/icons/*
+  Cache-Control: public, max-age=86400
+/favicon.png
+  Cache-Control: public, max-age=86400
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
