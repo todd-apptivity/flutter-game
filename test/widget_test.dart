@@ -1,37 +1,34 @@
-import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter_game/game.dart';
+import 'package:flutter_game/config/game_config.dart';
+import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWithGame<MyGame>('player spawns at the spawn point', MyGame.new, (
-    game,
-  ) async {
-    await game.ready();
+  // Needed so the asset bundle exists: the loaders expect a missing-file
+  // failure, not a missing-binding failure.
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    final player = game.children.whereType<Player>().single;
-    expect(player.position, game.spawnPoint);
-  });
+  testWithGame<RogueAgentsGame>(
+    'player spawns in the centre of the design rect',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
 
-  testWithGame<MyGame>('moveTo sets the player target', MyGame.new, (
-    game,
-  ) async {
-    await game.ready();
+      expect(game.player.position, GameConfig.designSize / 2);
+    },
+  );
 
-    game.moveTo(Vector2(10, 20));
-    expect(game.player.target, Vector2(10, 20));
-  });
+  testWithGame<RogueAgentsGame>(
+    'arena is inset from the design rect by the margin',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
 
-  testWithGame<MyGame>('reset recentres and clears the target', MyGame.new, (
-    game,
-  ) async {
-    await game.ready();
-
-    game.player.position = Vector2(5, 5);
-    game.moveTo(Vector2(10, 20));
-    game.reset();
-
-    expect(game.player.position, game.spawnPoint);
-    expect(game.player.target, isNull);
-  });
+      expect(game.arena.bounds.left, GameConfig.arenaMargin);
+      expect(
+        game.arena.bounds.right,
+        GameConfig.designWidth - GameConfig.arenaMargin,
+      );
+    },
+  );
 }

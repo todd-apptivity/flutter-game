@@ -1,8 +1,7 @@
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
-import 'package:flame/components.dart';
-import 'package:flutter_game/game.dart';
+import 'package:flutter_game/game/rogue_agents_game.dart';
 
 @JS('globalThis')
 external JSObject get _globalThis;
@@ -12,51 +11,36 @@ extension type _RogueAgentApi._(JSObject _) implements JSObject {
   external factory _RogueAgentApi({
     JSFunction ready,
     JSFunction state,
-    JSFunction tap,
-    JSFunction reset,
     JSFunction setPaused,
     JSFunction step,
   });
 }
 
-/// Publishes `window.rogueAgent`. Driver-facing contract:
+/// Publishes `window.rogueAgent` so a Chromium driver can inspect and drive the
+/// game without clicking canvas pixels. Driver-facing contract:
 ///
 /// ```js
-/// await rogueAgent.ready()          // true once the game tree is mounted
-/// rogueAgent.state()                // { ready, paused, width, height, player, target }
-/// rogueAgent.tap(120, 240)          // same effect as tapping that point
-/// rogueAgent.setPaused(true)        // stop the rAF-driven loop
-/// rogueAgent.step(0.016)            // advance one deterministic frame while paused
-/// rogueAgent.reset()                // agent back to centre, target cleared
+/// rogueAgent.ready()        // true once the game tree is mounted
+/// rogueAgent.state()        // { ready, paused, player: {x, y} }
+/// rogueAgent.setPaused(true)
+/// rogueAgent.step(0.016)    // advance one deterministic frame while paused
 /// ```
-void installGameApi(MyGame game) {
-  bool isReady() => game.isMounted && game.children.whereType<Player>().isNotEmpty;
+void installGameApi(RogueAgentsGame game) {
+  bool isReady() => game.isMounted;
 
-  JSObject stateOf() {
-    final target = isReady() ? game.player.target : null;
-    return {
-      'ready': isReady(),
-      'paused': game.paused,
-      'width': game.size.x,
-      'height': game.size.y,
-      'player': isReady()
-          ? {'x': game.player.position.x, 'y': game.player.position.y}
-          : null,
-      'target': target == null ? null : {'x': target.x, 'y': target.y},
-    }.jsify() as JSObject;
-  }
+  JSObject stateOf() => {
+        'ready': isReady(),
+        'paused': game.paused,
+        'player': isReady()
+            ? {'x': game.player.position.x, 'y': game.player.position.y}
+            : null,
+      }.jsify() as JSObject;
 
   _globalThis.setProperty(
     'rogueAgent'.toJS,
     _RogueAgentApi(
       ready: (() => isReady().toJS).toJS,
       state: (() => stateOf()).toJS,
-      tap: ((double x, double y) {
-        if (isReady()) game.moveTo(Vector2(x, y));
-      }).toJS,
-      reset: (() {
-        if (isReady()) game.reset();
-      }).toJS,
       setPaused: ((bool paused) => game.paused = paused).toJS,
       // Manual tick: the engine skips update() while paused, so a driver can
       // advance the simulation by an exact dt and get reproducible positions.

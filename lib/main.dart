@@ -1,17 +1,20 @@
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_game/game.dart';
+import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_game/game_api.dart';
-import 'package:flutter_game/landing_page.dart';
 
 void main() {
-  final game = MyGame();
+  final game = RogueAgentsGame();
   installGameApi(game);
 
   runApp(
     MaterialApp(
-      title: 'Rogue Agent',
+      title: 'Rogue Agents',
       debugShowCheckedModeBanner: false,
-      home: LandingPage(game: game),
+      home: Scaffold(
+        backgroundColor: const Color(0xFF000000),
+        body: GameWidget(game: game),
+      ),
     ),
   );
 }
