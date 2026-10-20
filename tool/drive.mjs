@@ -434,11 +434,14 @@ let ringRadius = 0;
     await keepAlive();
   }
   const after = await page.evaluate(() => rogueAgent.state());
-  const stillOnRing = after.orbitNodes.every(
-    (n) =>
-      Math.abs(Math.hypot(n.x - after.player.x, n.y - after.player.y) - ringRadius) <
-      2,
+  // Range upgrades can widen the ring mid-check, so compare the nodes to each
+  // other rather than to the radius measured at spin-up.
+  const nowRadii = after.orbitNodes.map((n) =>
+    Math.hypot(n.x - after.player.x, n.y - after.player.y),
   );
+  const stillOnRing =
+    nowRadii.length > 0 &&
+    nowRadii.every((r) => Math.abs(r - nowRadii[0]) < 2 && r >= ringRadius - 2);
   if (!stillOnRing) {
     problems.push('orbit nodes stopped tracking the player');
   } else if (after.kills <= killsBefore) {
