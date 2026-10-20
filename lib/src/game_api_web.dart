@@ -2,6 +2,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
 import 'package:flutter_game/game/agent.dart';
+import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 
 @JS('globalThis')
@@ -44,6 +45,12 @@ void installGameApi(RogueAgentsGame game) {
                       'y': a.position.y,
                       'hp': a.hp,
                     })
+                .toList()
+            : <Object>[],
+        'projectiles': isReady()
+            ? game.world.children
+                .whereType<Projectile>()
+                .map((p) => {'x': p.position.x, 'y': p.position.y})
                 .toList()
             : <Object>[],
       }.jsify() as JSObject;

@@ -9,6 +9,8 @@ import 'package:flutter_game/game/arena.dart';
 import 'package:flutter_game/game/input_controller.dart';
 import 'package:flutter_game/game/player.dart';
 import 'package:flutter_game/game/spawner.dart';
+import 'package:flutter_game/game/weapon.dart';
+import 'package:flutter_game/config/weapons.dart';
 
 /// Rogue Agents: you are the control plane. Everything else wants in.
 class RogueAgentsGame extends FlameGame with KeyboardEvents {
@@ -27,6 +29,9 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   late final InputController input;
   late final Spawner spawner;
 
+  /// Weapons the player currently owns. Stage 7 upgrades add to this.
+  final weapons = <Weapon>[];
+
   @override
   Color backgroundColor() => Palette.background;
 
@@ -42,6 +47,15 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     spawner = Spawner();
 
     await world.addAll([arena, input, player, spawner]);
+    await equip(weaponSpec('packet_cannon'));
+  }
+
+  /// Gives the player a weapon. Upgrades call this to add a second one.
+  Future<Weapon> equip(WeaponSpec spec) async {
+    final weapon = Weapon(spec);
+    weapons.add(weapon);
+    await world.add(weapon);
+    return weapon;
   }
 
   @override

@@ -161,6 +161,21 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
   }
 }
 
+// Once agents are close, the defenses must fire on their own.
+{
+  let fired = 0;
+  for (let i = 0; i < 20 && fired === 0; i++) {
+    await settle(250);
+    const s = await page.evaluate(() => rogueAgent.state());
+    fired = s.projectiles.length;
+  }
+  if (fired === 0) {
+    problems.push('the weapon never fired at an agent in range');
+  } else {
+    console.log(`✓ defenses fire automatically (${fired} packets in flight)`);
+  }
+}
+
 await settle(1500);
 const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });

@@ -14,14 +14,14 @@ combination of present/missing assets runs.
 |---|---|---|---|---|---|---|
 | Control plane core | `assets/images/player_core.png` | 32x32 | 4 (h-strip, 128x32) | yes | 1 | placeholder |
 | Arena floor tile | `assets/images/floor_tile.png` | 32x32 | 1 | no | 1 | placeholder |
+| Scraper agent | `assets/images/agent_scraper.png` | 24x24 | 2 (h-strip, 48x24) | yes | 3 | placeholder |
+| Packet projectile | `assets/images/proj_packet.png` | 8x8 | 1 | yes | 4 | placeholder |
 
 Assets below are planned by later stages and not loaded yet; they are listed so
 art can be generated ahead of time.
 
 | Asset | Path | Size (px) | Frames | Transparent | Stage | Status |
 |---|---|---|---|---|---|---|
-| Scraper agent | `assets/images/agent_scraper.png` | 24x24 | 2 (h-strip, 48x24) | yes | 3 | placeholder |
-| Packet projectile | `assets/images/proj_packet.png` | 8x8 | 1 | yes | 4 | placeholder |
 | Token pickup | `assets/images/pickup_token.png` | 12x12 | 4 (h-strip, 48x12) | yes | 6 | placeholder |
 | Crawler agent | `assets/images/agent_crawler.png` | 40x40 | 2 (h-strip, 80x40) | yes | 9 | placeholder |
 | Swarm-let agent | `assets/images/agent_swarmlet.png` | 12x12 | 2 (h-strip, 24x12) | yes | 9 | placeholder |

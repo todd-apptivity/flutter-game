@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_game/config/agents.dart';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/game/agent.dart';
+import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -130,6 +131,70 @@ void main() {
         agent.position.distanceTo(game.player.position),
         lessThan(before - 50),
       );
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'the weapon holds fire with nothing in range',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      for (var i = 0; i < 120; i++) {
+        game.update(1 / 60);
+      }
+      await game.ready();
+
+      // Agents spawn off-arena, well outside the Packet Cannon's range.
+      expect(game.world.children.whereType<Agent>(), isNotEmpty);
+      expect(game.world.children.whereType<Projectile>(), isEmpty);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'the weapon fires at an agent that comes into range',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final weapon = game.weapons.single;
+
+      final agent = Agent(
+        spec: agentSpec('scraper'),
+        position: game.player.position + Vector2(120, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      expect(weapon.nearestAgent(), agent);
+      game.update(weapon.cooldown + 0.01);
+      await game.ready();
+
+      final shots = game.world.children.whereType<Projectile>().toList();
+      expect(shots, hasLength(1));
+      // Aimed right, at the agent.
+      expect(shots.single.direction.x, closeTo(1, 0.001));
+      expect(shots.single.direction.y, closeTo(0, 0.001));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'projectiles expire at the end of their range',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final weapon = game.weapons.single;
+
+      weapon.fireAt(game.player.position + Vector2(0, -100));
+      await game.ready();
+      expect(game.world.children.whereType<Projectile>(), hasLength(1));
+
+      // Long enough to outrun the range, from the centre of the arena.
+      for (var i = 0; i < 180; i++) {
+        game.update(1 / 60);
+      }
+      await game.ready();
+
+      expect(game.world.children.whereType<Projectile>(), isEmpty);
     },
   );
 }
