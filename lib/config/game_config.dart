@@ -20,4 +20,15 @@ class GameConfig {
 
   /// Player core: 32x32 art at [pixelScale].
   static const playerSize = 32.0 * pixelScale;
+
+  /// Base player travel speed, world units per second.
+  static const playerSpeed = 260.0;
+
+  /// How fast the core reaches full speed / stops, in seconds-ish. Small
+  /// enough to feel responsive, large enough that it doesn't snap.
+  static const playerAccel = 14.0;
+
+  /// Mouse steering ignores anything closer than this, so the core doesn't
+  /// vibrate when it is sitting under the cursor.
+  static const pointerDeadZone = 6.0;
 }

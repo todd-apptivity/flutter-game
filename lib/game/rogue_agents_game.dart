@@ -1,14 +1,16 @@
-import 'dart:ui';
-
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/palette.dart';
 import 'package:flutter_game/game/arena.dart';
+import 'package:flutter_game/game/input_controller.dart';
 import 'package:flutter_game/game/player.dart';
 
 /// Rogue Agents: you are the control plane. Everything else wants in.
-class RogueAgentsGame extends FlameGame {
+class RogueAgentsGame extends FlameGame with KeyboardEvents {
   RogueAgentsGame()
       : super(
           // Authored at 1280x720 and letterboxed, so world coordinates are
@@ -21,6 +23,7 @@ class RogueAgentsGame extends FlameGame {
 
   late final Arena arena;
   late final Player player;
+  late final InputController input;
 
   @override
   Color backgroundColor() => Palette.background;
@@ -32,8 +35,18 @@ class RogueAgentsGame extends FlameGame {
     camera.viewfinder.position = GameConfig.designSize / 2;
 
     arena = Arena();
+    input = InputController();
     player = Player()..position = GameConfig.designSize / 2;
 
-    await world.addAll([arena, player]);
+    await world.addAll([arena, input, player]);
+  }
+
+  @override
+  KeyEventResult onKeyEvent(
+    KeyEvent event,
+    Set<LogicalKeyboardKey> keysPressed,
+  ) {
+    input.syncKeys(keysPressed);
+    return KeyEventResult.handled;
   }
 }

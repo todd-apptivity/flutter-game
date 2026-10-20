@@ -1,4 +1,6 @@
+import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +30,60 @@ void main() {
       expect(
         game.arena.bounds.right,
         GameConfig.designWidth - GameConfig.arenaMargin,
+      );
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'held keys move the player and beat the mouse',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final start = game.player.position.clone();
+
+      // Mouse sits to the left; keys say right. Keys win.
+      game.input.pointer = Vector2(0, start.y);
+      game.input.syncKeys({LogicalKeyboardKey.keyD});
+      for (var i = 0; i < 30; i++) {
+        game.update(1 / 60);
+      }
+
+      expect(game.player.position.x, greaterThan(start.x));
+      expect(game.player.position.y, closeTo(start.y, 0.001));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'with no keys held the player chases the pointer',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final start = game.player.position.clone();
+
+      game.input.pointer = Vector2(start.x, start.y - 200);
+      for (var i = 0; i < 30; i++) {
+        game.update(1 / 60);
+      }
+
+      expect(game.player.position.y, lessThan(start.y));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'the player cannot leave the arena',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.input.syncKeys({LogicalKeyboardKey.arrowLeft});
+      for (var i = 0; i < 600; i++) {
+        game.update(1 / 60);
+      }
+
+      final half = game.player.size.x / 2;
+      expect(
+        game.player.position.x,
+        greaterThanOrEqualTo(game.arena.bounds.left + half - 0.001),
       );
     },
   );

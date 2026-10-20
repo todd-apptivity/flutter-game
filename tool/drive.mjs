@@ -53,11 +53,24 @@ const base = `http://localhost:${server.address().port}`;
 const browser = await chromium.launch({
   args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'],
 });
-const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
 const problems = [];
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
-page.on('console', (m) => m.type() === 'error' && problems.push(`console: ${m.text()}`));
+// Pixel art lands file-by-file during the build, and the game is designed to
+// draw placeholders for whatever is absent — so a 404 under assets/images is
+// expected, and its matching console line is noise. Anything else is a bug.
+const expectedMiss = (url) => url.includes('/assets/assets/images/');
+page.on('console', (m) => {
+  if (m.type() !== 'error') return;
+  if (m.text().includes('Failed to load resource')) return;
+  problems.push(`console: ${m.text()}`);
+});
+page.on('response', (r) => {
+  if (r.status() >= 400 && !expectedMiss(r.url())) {
+    problems.push(`http ${r.status()}: ${r.url()}`);
+  }
+});
 page.on('requestfailed', (r) =>
   problems.push(`requestfailed: ${r.url()} ${r.failure()?.errorText}`),
 );
@@ -68,39 +81,67 @@ await page.waitForFunction(() => globalThis.rogueAgent?.ready?.() === true, null
 });
 console.log('✓ booted; window.rogueAgent.ready() === true');
 
-// Deterministic run: pause the rAF loop, then advance exact frames.
-await page.evaluate(() => {
-  rogueAgent.setPaused(true);
-  rogueAgent.reset();
-  rogueAgent.tap(800, 600);
-});
-const before = await page.evaluate(() => rogueAgent.state());
-await page.evaluate(() => {
-  for (let i = 0; i < 10; i++) rogueAgent.step(1 / 60);
-});
-const after = await page.evaluate(() => rogueAgent.state());
+const pos = async () => (await page.evaluate(() => rogueAgent.state())).player;
+const settle = (ms = 600) => page.waitForTimeout(ms);
 
-const moved = Math.hypot(after.player.x - before.player.x, after.player.y - before.player.y);
-const expected = 300 * (10 / 60); // Player.speed * elapsed
-if (Math.abs(moved - expected) > 0.5) {
-  problems.push(`step() moved ${moved.toFixed(2)}px, expected ${expected.toFixed(2)}px`);
-} else {
-  console.log(`✓ step() is deterministic (${moved.toFixed(2)}px over 10 frames)`);
+// Real key events must reach the game and move the core right.
+{
+  const before = await pos();
+  await page.keyboard.down('d');
+  await settle();
+  await page.keyboard.up('d');
+  const after = await pos();
+  if (after.x - before.x < 20) {
+    problems.push(`holding D moved the core ${(after.x - before.x).toFixed(1)}px right`);
+  } else {
+    console.log(`✓ keyboard moves the core (${(after.x - before.x).toFixed(1)}px right)`);
+  }
 }
 
-// The landing copy must not swallow pointer events meant for the canvas.
-await page.evaluate(() => {
-  rogueAgent.setPaused(false);
-  rogueAgent.reset();
-});
-await page.mouse.click(700, 200);
-await page
-  .waitForFunction(() => rogueAgent.state().target !== null, null, { timeout: 5000 })
-  .then(() => console.log('✓ canvas taps reach the game'))
-  .catch(() => problems.push('a canvas tap did not reach the game'));
+// With no keys held, the core chases the mouse.
+{
+  const before = await pos();
+  await page.mouse.move(640, 80, { steps: 8 });
+  await settle();
+  const after = await pos();
+  if (before.y - after.y < 20) {
+    problems.push(`the core did not chase the pointer (dy ${(after.y - before.y).toFixed(1)})`);
+  } else {
+    console.log(`✓ pointer steering works (${(before.y - after.y).toFixed(1)}px up)`);
+  }
+}
 
-await page.evaluate(() => rogueAgent.reset());
-const shot = path.join(BUILD, 'landing.png');
+// Keys outrank the mouse while held.
+{
+  await page.mouse.move(100, 360, { steps: 4 });
+  await settle(300);
+  const before = await pos();
+  await page.keyboard.down('ArrowRight');
+  await settle();
+  await page.keyboard.up('ArrowRight');
+  const after = await pos();
+  if (after.x <= before.x) {
+    problems.push('keyboard did not override pointer steering');
+  } else {
+    console.log('✓ keyboard overrides the pointer while held');
+  }
+}
+
+// The core must stay inside the arena.
+{
+  await page.mouse.move(1279, 719, { steps: 8 });
+  await settle(2500);
+  const p = await pos();
+  if (p.x > 1280 - 24 || p.y > 720 - 24) {
+    problems.push(`the core left the arena at (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+  } else {
+    console.log(`✓ clamped inside the arena (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+  }
+}
+
+await page.mouse.move(640, 360, { steps: 6 });
+await settle(1200);
+const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });
 console.log(`✓ screenshot written to ${shot}`);
 
