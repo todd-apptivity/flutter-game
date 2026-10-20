@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rogue Agents — asset preview</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:32px;background:#031212;color:#bfecec;font:14px system-ui}h1{font-size:26px;margin:0 0 8px}p{color:#739d9d;margin:0 0 24px}button{padding:9px 14px;background:#153434;color:#bfecec;border:1px solid #326969;border-radius:6px;cursor:pointer;margin:0 8px 24px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{border:1px solid #214141;padding:18px;border-radius:8px;overflow:hidden}.card h2{font-size:15px;margin:0 0 6px}.meta{font-size:12px;color:#739d9d}.stage{margin-top:12px;min-height:125px;display:flex;align-items:center;justify-content:center;gap:24px;background:#031212}.checker .stage{background:repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 0/16px 16px}canvas{image-rendering:pixelated;max-width:100%;object-fit:contain}@media(max-width:650px){.grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){body{--reduce:1}}
+</style>
+<h1>Rogue Agents / sprite library</h1>
+<p>All eight assets · transparent PNG · exact game dimensions · enlarged without smoothing</p>
+<button id="background">Toggle transparency grid</button><button id="motion">Pause animation</button>
+<div class="grid"></div>
+<script>
+const assets=[['player_core','Control plane core',32,4],['agent_scraper','Scraper agent',24,2],['agent_crawler','Crawler agent',40,2],['agent_injector','Injector agent',28,2],['agent_swarmlet','Swarm-let agent',12,2],['pickup_token','Token pickup',12,4],['proj_packet','Packet projectile',8,1],['floor_tile','Arena floor overlay',32,1]];
+let paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
+document.querySelector('#background').onclick=()=>document.body.classList.toggle('checker');
+document.querySelector('#motion').onclick=e=>{paused=!paused;e.target.textContent=paused?'Play animation':'Pause animation'};
+window.assetsReady=Promise.all(assets.map(async([name,label,size,frames])=>{
+ const card=document.createElement('section');card.className='card';card.innerHTML=`<h2>${label}</h2><span class="meta">${name}.png · ${size*frames} × ${size}px · ${frames} frame${frames>1?'s':''}</span><div class="stage"></div>`;document.querySelector('.grid').append(card);
+ const image=new Image();image.src=`../assets/images/${name}.png`;await image.decode();
+ const canvas=document.createElement('canvas');const floor=name==='floor_tile';canvas.width=floor?size*4:size;canvas.height=floor?size*2:size;const scale=floor?3:size<=12?8:3;canvas.style.width=canvas.width*scale+'px';canvas.style.height=canvas.height*scale+'px';card.querySelector('.stage').append(canvas);
+ const context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
+ let last=0;function draw(time){if(!paused)last=Math.floor(time/160)%frames;context.clearRect(0,0,canvas.width,canvas.height);if(floor){for(let y=0;y<2;y++)for(let x=0;x<4;x++)context.drawImage(image,x*size,y*size)}else context.drawImage(image,last*size,0,size,size,0,0,size,size);requestAnimationFrame(draw)}draw(0);
+ return {name,size,frames};
+}));
+</script>
+</html>

@@ -1,0 +1,58 @@
+[
+  {
+    "name": "player_core",
+    "size": 32,
+    "frames": 4,
+    "prompt": "Use case: stylized-concept. Asset type: production pixel art sprite sheet for Rogue Agents, a Flutter/Flame game. A hovering hexagonal server core in bright aqua #20b1b3 with a glowing white center ring and exactly three small orbiting data nodes. Four animation frames show the ring pulsing and nodes rotating. Keep the hexagonal chassis exactly fixed, consistent design and scale in all four frames. Dark teal shadows, white-aqua highlights. EXACTLY 4 frames in ONE horizontal row of 4 equal square cells, no gutters, no border, no labels. Logical frame size 32x32; logical sheet 128x32. Render as strict low-resolution pixel art, enlarged nearest-neighbor if needed: clean square pixel blocks on a consistent grid, limited palette, 1 logical pixel outline, NO antialiasing, NO gradients, NO soft bloom, NO shadows outside the object. Each complete sprite centered in its own equal square cell with 2 logical pixels transparent padding; same baseline and scale. Orthographic game asset, not a poster or mockup. GENUINE TRANSPARENT background throughout all empty space, no checkerboard painted into image. Desired wide canvas aspect 4:1.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-29d9780f-2871-4edb-b6a9-f165b77a2eb4.png"
+  },
+  {
+    "name": "floor_tile",
+    "size": 32,
+    "frames": 1,
+    "prompt": "Production seamless 32x32 logical pixel art tile overlay for a dark sci-fi circuit board game floor. Render large with HUGE square logical pixels, each logical pixel is EXACTLY one thirty-second of total canvas width. Use just two flat colors: very dark teal #0b2a2a traces and dim muted teal #164040 dots. GENUINE transparent background, no fill. Four or five VERY SIMPLE continuous angular L-shaped or Z-shaped circuit tracks, all tracks exactly ONE LOGICAL PIXEL THICK (one thirty-second of canvas width, visually chunky, NOT hairline), long runs of 6 to10 logical pixels. THREE simple solid terminal dots two logical pixels wide. VERY SPARSE and low contrast, no distracting bright spots. Keep a TWO logical pixel empty transparent margin all around all artwork so the square repeats seamlessly with no edge discontinuities. Strictly aligned32x32 logical square grid, flat orthographic view, no perspective, no antialiasing, no gradients, no blur, no checkerboard, no text.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-32d66f7d-f954-4b2d-a068-e8ea6020f019.png"
+  },
+  {
+    "name": "agent_scraper",
+    "size": 24,
+    "frames": 2,
+    "prompt": "Use case: stylized-concept. Production pixel art sprite sheet for Rogue Agents Flutter/Flame game. A small boxy malicious robot, dark charcoal #1c2224 body with readable grey steel panel lines, one large glowing red cyclops eye #bc2222 centered. Two stubby legs. Two frames alternate the leg step, but torso and eye stay fixed at the exact same location and scale. Menacing chunky silhouette, frontal view. EXACTLY 2 animation frames in ONE horizontal row of 2 equal square cells, no gutters, no labels. Logical resolution 24x24 per frame; sheet 48x24. Strict small pixel art enlarged with nearest-neighbor: square pixels, consistent logical grid, limited palette, one logical pixel outline. No antialiasing, gradients, soft bloom, ground shadows or scenery. Sprite centered in each cell with two logical pixels of clear padding. Chassis position and size consistent for animation. Genuine transparent background, no baked checkerboard. Wide canvas aspect 2:1.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-c310d6a9-e1c3-43cd-8db3-071c582c0d52.png"
+  },
+  {
+    "name": "proj_packet",
+    "size": 8,
+    "frames": 1,
+    "prompt": "Use case: stylized-concept. Production pixel art asset for Rogue Agents Flutter/Flame game. A single small glowing aqua #20b1b3 data packet: bright square core with a tiny white highlight and a one pixel darker aqua outline. Extremely simple readable eight by eight pixel sprite, centered with one transparent logical pixel margin. No tails, symbols or lettering. EXACTLY 1 frame in a square canvas, no gutters, no labels. Logical resolution 8x8 per frame. Strict small pixel art enlarged with nearest-neighbor: square pixels, consistent logical grid, limited palette. Very simple shapes appropriate to this tiny resolution. No antialiasing, gradients, soft bloom, ground shadows or scenery. Sprite centered in each cell with one logical pixel of clear padding; fixed center and consistent height in all frames. Genuine transparent background, no baked checkerboard. Canvas aspect 1:1.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-ad96b088-bf8e-46fe-b12b-96982d63089c.png"
+  },
+  {
+    "name": "pickup_token",
+    "size": 12,
+    "frames": 4,
+    "prompt": "Use case: stylized-concept. Production pixel art asset for Rogue Agents Flutter/Flame game. A spinning aqua #20b1b3 hexagonal token coin with a white highlight, rotating through exactly four stages left to right: wide face, narrow edge, wide reverse face, narrow edge. Identical center positions and height in each frame. Simple enough to read at twelve by twelve pixels. No text or letters. EXACTLY 4 frames in ONE horizontal row of 4 equal square cells, no gutters, no labels. Logical resolution 12x12 per frame. Strict small pixel art enlarged with nearest-neighbor: square pixels, consistent logical grid, limited palette. Very simple shapes appropriate to this tiny resolution. No antialiasing, gradients, soft bloom, ground shadows or scenery. Sprite centered in each cell with one logical pixel of clear padding; fixed center and consistent height in all frames. Genuine transparent background, no baked checkerboard. Canvas aspect 4:1.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-cb4e925b-cc93-4d0d-b901-eebbd47868f3.png"
+  },
+  {
+    "name": "agent_crawler",
+    "size": 40,
+    "frames": 2,
+    "prompt": "Use case: stylized-concept. Production pixel art sprite sheet for Rogue Agents Flutter/Flame game. A heavy armored crawler bot, thick dark steel #1c2224 plating with grey edges and rivets, wide tank treads, single red slit eye #bc2222. Bulky and slow-looking, frontal slightly top-down view. Two frames alternate tread position only; keep hull and eye identical in location and size. EXACTLY 2 animation frames in ONE horizontal row of 2 equal square cells, no gutters, no labels. Logical resolution 40x40 per frame; sheet 80x40. Strict small pixel art enlarged with nearest-neighbor: square pixels, consistent logical grid, limited palette, one logical pixel outline. No antialiasing, gradients, soft bloom, ground shadows or scenery. Sprite centered in each cell with two logical pixels of clear padding. Chassis position and size consistent for animation. Genuine transparent background, no baked checkerboard. Wide canvas aspect 2:1.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-81f8a0f5-28bb-40f0-9a56-cec169d73a86.png"
+  },
+  {
+    "name": "agent_swarmlet",
+    "size": 12,
+    "frames": 2,
+    "prompt": "Production sprite sheet, TRUE VERY LOW RESOLUTION PIXEL ART. Exactly two 12x12 logical pixel frames side by side, sheet24x12. Show as enlarged chunky pixel squares. Every pixel block is HUGE: one twelfth of a frame width, no smaller details. Tiny flying gnat drone: compact 4 pixel wide by 4 pixel tall charcoal body in center with grey top edge and ONE VERY PROMINENT SOLID RED square cyclops eye #bc2222 occupying the center 2x2 logical pixels so it survives downsampling. Two short thick rotor wings, 3 logical pixels long on each side. Frame1 wings slope up, frame2 wings horizontal. Body and red eye fixed at exactly same center in each frame. Artwork fills10x10 logical pixels within each12x12 frame. Simple arcade sprite silhouette, only6 flat colors, no gradient, no glow, no antialias, no microdetails. Each cell has a one logical pixel transparent margin. One horizontal row,2 equal square cells, aspect2:1. GENUINE transparent alpha background. No text, no labels, no scenery, no painted checkerboard.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-c1585ce8-fc71-4bad-8b69-2807c7b2ac51.png"
+  },
+  {
+    "name": "agent_injector",
+    "size": 28,
+    "frames": 2,
+    "prompt": "Use case: stylized-concept. Production pixel art sprite sheet for Rogue Agents Flutter/Flame game. A floating boxy bot with a forward-facing emitter barrel, dark purple-charcoal body, single red eye #bc2222, small antenna. Two frames alternate a red charging glow in the barrel: dim then bright. Chassis silhouette, barrel, antenna and eye maintain exactly the same position and size. Frontal slightly elevated view. EXACTLY 2 animation frames in ONE horizontal row of 2 equal square cells, no gutters, no labels. Logical resolution 28x28 per frame; sheet 56x28. Strict small pixel art enlarged with nearest-neighbor: square pixels, consistent logical grid, limited palette, one logical pixel outline. No antialiasing, gradients, soft bloom, ground shadows or scenery. Sprite centered in each cell with two logical pixels of clear padding. Chassis position and size consistent for animation. Genuine transparent background, no baked checkerboard. Wide canvas aspect 2:1.",
+    "source": "/Users/todd/.codex/generated_images/01a15ade-9dec-7941-8b7c-16867c6ffe4b/exec-39350ea5-c96c-4020-ad33-878026bcf408.png"
+  }
+]

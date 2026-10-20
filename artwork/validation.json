@@ -1,0 +1,180 @@
+[
+  {
+    "name": "player_core",
+    "width": 128,
+    "height": 32,
+    "expected": [
+      128,
+      32
+    ],
+    "frames": [
+      {
+        "transparent": 532,
+        "visible": 492,
+        "red": 0
+      },
+      {
+        "transparent": 538,
+        "visible": 486,
+        "red": 0
+      },
+      {
+        "transparent": 532,
+        "visible": 492,
+        "red": 0
+      },
+      {
+        "transparent": 523,
+        "visible": 501,
+        "red": 0
+      }
+    ]
+  },
+  {
+    "name": "floor_tile",
+    "width": 32,
+    "height": 32,
+    "expected": [
+      32,
+      32
+    ],
+    "frames": [
+      {
+        "transparent": 901,
+        "visible": 123,
+        "red": 0
+      }
+    ]
+  },
+  {
+    "name": "agent_scraper",
+    "width": 48,
+    "height": 24,
+    "expected": [
+      48,
+      24
+    ],
+    "frames": [
+      {
+        "transparent": 276,
+        "visible": 300,
+        "red": 14
+      },
+      {
+        "transparent": 278,
+        "visible": 298,
+        "red": 14
+      }
+    ]
+  },
+  {
+    "name": "proj_packet",
+    "width": 8,
+    "height": 8,
+    "expected": [
+      8,
+      8
+    ],
+    "frames": [
+      {
+        "transparent": 32,
+        "visible": 32,
+        "red": 0
+      }
+    ]
+  },
+  {
+    "name": "pickup_token",
+    "width": 48,
+    "height": 12,
+    "expected": [
+      48,
+      12
+    ],
+    "frames": [
+      {
+        "transparent": 82,
+        "visible": 62,
+        "red": 0
+      },
+      {
+        "transparent": 126,
+        "visible": 18,
+        "red": 0
+      },
+      {
+        "transparent": 80,
+        "visible": 64,
+        "red": 0
+      },
+      {
+        "transparent": 119,
+        "visible": 25,
+        "red": 0
+      }
+    ]
+  },
+  {
+    "name": "agent_crawler",
+    "width": 80,
+    "height": 40,
+    "expected": [
+      80,
+      40
+    ],
+    "frames": [
+      {
+        "transparent": 806,
+        "visible": 794,
+        "red": 6
+      },
+      {
+        "transparent": 791,
+        "visible": 809,
+        "red": 6
+      }
+    ]
+  },
+  {
+    "name": "agent_swarmlet",
+    "width": 24,
+    "height": 12,
+    "expected": [
+      24,
+      12
+    ],
+    "frames": [
+      {
+        "transparent": 125,
+        "visible": 19,
+        "red": 2
+      },
+      {
+        "transparent": 121,
+        "visible": 23,
+        "red": 2
+      }
+    ]
+  },
+  {
+    "name": "agent_injector",
+    "width": 56,
+    "height": 28,
+    "expected": [
+      56,
+      28
+    ],
+    "frames": [
+      {
+        "transparent": 444,
+        "visible": 340,
+        "red": 9
+      },
+      {
+        "transparent": 442,
+        "visible": 342,
+        "red": 19
+      }
+    ]
+  }
+]
