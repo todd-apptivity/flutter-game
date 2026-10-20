@@ -3,6 +3,8 @@ import 'package:flame_test/flame_test.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_game/config/agents.dart';
 import 'package:flutter_game/config/game_config.dart';
+import 'package:flutter_game/config/upgrades.dart';
+import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
@@ -389,6 +391,139 @@ void main() {
       );
       expect(game.level, greaterThanOrEqualTo(3));
       expect(game.levelProgress, lessThanOrEqualTo(1.0));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'levelling up opens a draft of three cards and freezes the arena',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.isDrafting, isFalse);
+
+      final agent = Agent(
+        spec: agentSpec('scraper'),
+        position: game.player.position + Vector2(260, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      game.levelUp();
+      await game.ready();
+
+      expect(game.isDrafting, isTrue);
+      expect(game.offered, hasLength(3));
+      expect(game.offered.toSet(), hasLength(3));
+      expect(game.draftOverlay.isVisible, isTrue);
+
+      // Nothing moves while the cards are up.
+      final agentAt = agent.position.clone();
+      final clock = game.elapsed;
+      await tick(game, 30);
+      expect(agent.position, agentAt);
+      expect(game.elapsed, clock);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'picking a card applies it and resumes the run',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final before = game.weapons.single.cooldown;
+
+      game.levelUp();
+      await game.ready();
+
+      // Force a known card onto the table so the assertion is not random.
+      game.offered
+        ..clear()
+        ..add(upgradeSpec('throughput'));
+      game.chooseUpgrade(upgradeSpec('throughput'));
+      await game.ready();
+
+      expect(game.isDrafting, isFalse);
+      expect(game.draftOverlay.isVisible, isFalse);
+      expect(game.upgradesTaken['throughput'], 1);
+      expect(game.weapons.single.cooldown, lessThan(before));
+
+      // The arena is running again.
+      await tick(game, 10);
+      expect(game.elapsed, greaterThan(0));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'two tiers at once draft twice',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.levelUp();
+      game.levelUp();
+      await game.ready();
+      expect(game.pendingLevelUps, 2);
+
+      game.chooseUpgrade(game.offered.first);
+      await game.ready();
+
+      // Still drafting: the second tier re-opened immediately.
+      expect(game.isDrafting, isTrue);
+      expect(game.pendingLevelUps, 1);
+
+      game.chooseUpgrade(game.offered.first);
+      await game.ready();
+
+      expect(game.isDrafting, isFalse);
+      expect(game.pendingLevelUps, 0);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'an upgrade stops being offered once it is maxed',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final spec = upgradeSpec('zero_copy');
+
+      game.upgradesTaken[spec.id] = spec.maxStacks;
+
+      expect(game.isUpgradeAvailable(spec), isFalse);
+      game.openDraft();
+      expect(game.offered, isNot(contains(spec)));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a weapon equipped after an upgrade inherits it',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      upgradeSpec('payload').apply(game);
+      final second = await game.equip(weaponSpec('packet_cannon'));
+
+      expect(second.damageMultiplier, closeTo(1.25, 0.001));
+      expect(second.damage, closeTo(game.weapons.first.damage, 0.001));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'Hot Patch repairs but never exceeds full integrity',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.damagePlayer(80);
+      upgradeSpec('hot_patch').apply(game);
+      expect(game.integrity, closeTo(55, 0.001));
+
+      upgradeSpec('hot_patch').apply(game);
+      expect(game.integrity, closeTo(90, 0.001));
+
+      // The next one would overshoot, so it caps.
+      upgradeSpec('hot_patch').apply(game);
+      expect(game.integrity, GameConfig.maxIntegrity);
     },
   );
 }

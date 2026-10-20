@@ -1,14 +1,20 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart' show KeyEventResult;
+import 'package:flutter/widgets.dart' show AppLifecycleState, KeyEventResult;
+import 'package:flutter_game/audio/adaptive_music.dart';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/palette.dart';
+import 'package:flutter_game/config/upgrades.dart';
 import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/arena.dart';
 import 'package:flutter_game/game/combat.dart';
+import 'package:flutter_game/game/draft_overlay.dart';
 import 'package:flutter_game/game/hud.dart';
 import 'package:flutter_game/game/input_controller.dart';
 import 'package:flutter_game/game/player.dart';
@@ -19,19 +25,26 @@ import 'package:flutter_game/game/weapon.dart';
 /// Rogue Agents: you are the control plane. Everything else wants in.
 class RogueAgentsGame extends FlameGame with KeyboardEvents {
   RogueAgentsGame()
-      : super(
-          // Authored at 1280x720 and letterboxed, so world coordinates are
-          // always design pixels no matter how big the browser window is.
-          camera: CameraComponent.withFixedResolution(
-            width: GameConfig.designWidth,
-            height: GameConfig.designHeight,
-          ),
-        );
+    : super(
+        // Authored at 1280x720 and letterboxed, so world coordinates are
+        // always design pixels no matter how big the browser window is.
+        camera: CameraComponent.withFixedResolution(
+          width: GameConfig.designWidth,
+          height: GameConfig.designHeight,
+        ),
+      );
 
   late final Arena arena;
   late final Player player;
   late final InputController input;
   late final Spawner spawner;
+  late final DraftOverlay draftOverlay;
+
+  final music = AdaptiveMusic();
+  bool _musicInBackground = false;
+
+  void _syncMusicPause() =>
+      music.setPaused(paused || isDrafting || _musicInBackground);
 
   /// Weapons the player currently owns. Stage 7 upgrades add to this.
   final weapons = <Weapon>[];
@@ -55,8 +68,32 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// Tokens absorbed this run.
   int tokensCollected = 0;
 
-  /// Pickup radius, widened by upgrades in stage 7.
+  /// Pickup radius, widened by upgrades.
   double magnetRadius = GameConfig.magnetRadius;
+
+  /// Player movement scaling from upgrades.
+  double playerSpeedMultiplier = 1;
+
+  /// Upgrade effects that must also apply to weapons equipped *later*, so a
+  /// second cannon picked up at tier 6 is not stuck at base stats.
+  double weaponCooldownMultiplier = 1;
+  double weaponDamageMultiplier = 1;
+  int weaponExtraProjectiles = 0;
+  int weaponExtraPierce = 0;
+
+  /// How many times each upgrade has been taken.
+  final upgradesTaken = <String, int>{};
+
+  /// Level-ups banked but not yet drafted.
+  int pendingLevelUps = 0;
+
+  /// The three cards currently on offer, empty when the game is running.
+  final offered = <UpgradeSpec>[];
+
+  /// True while the draft screen is up and the simulation is frozen.
+  bool get isDrafting => offered.isNotEmpty;
+
+  final _random = Random();
 
   /// XP required to go from [level] to the next one. Grows geometrically so
   /// early levels come fast and the pace settles later in a run.
@@ -85,15 +122,32 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     player = Player()..position = GameConfig.designSize / 2;
     spawner = Spawner();
 
+    draftOverlay = DraftOverlay();
+
     await world.addAll([arena, input, player, spawner, Combat()]);
-    await camera.viewport.add(Hud());
+    await camera.viewport.addAll([Hud(), draftOverlay]);
     await equip(weaponSpec('packet_cannon'));
   }
+
+  /// Freezes the arena while the draft is up by handing every component a dt
+  /// of zero. Lifecycle, input and rendering carry on, so the cards are live
+  /// while agents, packets and cooldowns are all stopped dead.
+  @override
+  void updateTree(double dt) => super.updateTree(isDrafting ? 0 : dt);
 
   @override
   void update(double dt) {
     super.update(dt);
+    _syncMusicPause();
+    if (isDrafting) return;
     elapsed += dt;
+    music.updateDanger(
+      healthFraction: integrity / GameConfig.maxIntegrity,
+      enemies: world.children
+          .whereType<Agent>()
+          .where((agent) => !agent.isRemoving && agent.hp > 0)
+          .length,
+    );
   }
 
   /// Contact damage from an agent standing on the control plane.
@@ -121,14 +175,61 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     }
   }
 
-  /// Stage 7 turns this into the upgrade draft; for now it just banks a level.
+  /// Banks a tier and opens the draft (or queues it if one is already up).
   void levelUp() {
     level++;
+    pendingLevelUps++;
+    if (!isDrafting) openDraft();
+  }
+
+  /// Picks three distinct eligible upgrades and freezes the arena.
+  void openDraft() {
+    final pool = upgradeCatalog.where(isUpgradeAvailable).toList();
+    if (pool.isEmpty) {
+      pendingLevelUps = 0;
+      return;
+    }
+
+    pool.shuffle(_random);
+    offered
+      ..clear()
+      ..addAll(pool.take(3));
+    draftOverlay.show(offered);
+  }
+
+  bool isUpgradeAvailable(UpgradeSpec spec) {
+    if ((upgradesTaken[spec.id] ?? 0) >= spec.maxStacks) return false;
+    return spec.available?.call(this) ?? true;
+  }
+
+  /// Applies the chosen card, then either re-opens for a queued tier or
+  /// resumes the run.
+  void chooseUpgrade(UpgradeSpec spec) {
+    if (!offered.contains(spec)) return;
+
+    spec.apply(this);
+    upgradesTaken.update(spec.id, (n) => n + 1, ifAbsent: () => 1);
+    pendingLevelUps = (pendingLevelUps - 1).clamp(0, 99);
+
+    offered.clear();
+    draftOverlay.hide();
+
+    if (pendingLevelUps > 0) openDraft();
+  }
+
+  /// Repairs the control plane, never above the maximum.
+  void repairPlayer(double amount) {
+    integrity = (integrity + amount).clamp(0.0, GameConfig.maxIntegrity);
   }
 
   /// Gives the player a weapon. Upgrades call this to add a second one.
   Future<Weapon> equip(WeaponSpec spec) async {
-    final weapon = Weapon(spec);
+    // Inherit everything the player has already unlocked.
+    final weapon = Weapon(spec)
+      ..cooldownMultiplier = weaponCooldownMultiplier
+      ..damageMultiplier = weaponDamageMultiplier
+      ..extraProjectiles = weaponExtraProjectiles
+      ..extraPierce = weaponExtraPierce;
     weapons.add(weapon);
     await world.add(weapon);
     return weapon;
@@ -139,7 +240,57 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
+    if (event is KeyDownEvent) {
+      // 1-3 pick a card while the draft is up.
+      final picks = {
+        LogicalKeyboardKey.digit1: 0,
+        LogicalKeyboardKey.digit2: 1,
+        LogicalKeyboardKey.digit3: 2,
+      };
+      final pick = picks[event.logicalKey];
+      if (isDrafting && pick != null) {
+        draftOverlay.chooseByIndex(pick);
+        return KeyEventResult.handled;
+      }
+
+      if (event.logicalKey == LogicalKeyboardKey.keyM) {
+        unawaited(music.toggle());
+      } else {
+        unawaited(music.unlock());
+      }
+    }
     input.syncKeys(keysPressed);
     return KeyEventResult.handled;
+  }
+
+  @override
+  set paused(bool value) {
+    super.paused = value;
+    _syncMusicPause();
+  }
+
+  @override
+  void pauseEngine() {
+    super.pauseEngine();
+    _syncMusicPause();
+  }
+
+  @override
+  void resumeEngine() {
+    super.resumeEngine();
+    _syncMusicPause();
+  }
+
+  @override
+  void lifecycleStateChange(AppLifecycleState state) {
+    _musicInBackground = state != AppLifecycleState.resumed;
+    super.lifecycleStateChange(state);
+    _syncMusicPause();
+  }
+
+  @override
+  void onRemove() {
+    music.dispose();
+    super.onRemove();
   }
 }

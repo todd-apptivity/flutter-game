@@ -37,6 +37,12 @@ dependencies:
   flame: ^1.38.2
   flutter_soloud: ^5.2.1
 
+# The synth streams raw PCM; native compressed-audio codecs are unnecessary.
+hooks:
+  user_defines:
+    flutter_soloud:
+      no_xiph_libs: true
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

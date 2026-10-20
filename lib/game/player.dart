@@ -69,8 +69,8 @@ class Player extends PositionComponent with HasGameReference<RogueAgentsGame> {
   }
 
   void _move(double dt) {
-    final desired =
-        game.input.directionFor(position) * GameConfig.playerSpeed;
+    final desired = game.input.directionFor(position) *
+        (GameConfig.playerSpeed * game.playerSpeedMultiplier);
     // Exponential approach: frame-rate independent, no overshoot.
     final blend = 1 - math.exp(-GameConfig.playerAccel * dt);
     velocity.setValues(

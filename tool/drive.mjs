@@ -262,6 +262,69 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
   }
 }
 
+// The level-up draft must open, freeze the arena, and apply what you pick.
+{
+  // Play until a tier is earned rather than forcing it, so this exercises the
+  // real path: kills -> tokens -> xp -> draft.
+  let state = await page.evaluate(() => rogueAgent.state());
+  for (let i = 0; i < 40 && !state.drafting; i++) {
+    await page.mouse.move(
+      440 + ((i * 97) % 400),
+      260 + ((i * 53) % 200),
+      { steps: 6 },
+    );
+    await settle(700);
+    state = await page.evaluate(() => rogueAgent.state());
+  }
+
+  if (!state.drafting) {
+    problems.push('never reached a level-up draft');
+  } else {
+    console.log(`✓ draft opened at tier ${state.level} with [${state.offered}]`);
+
+    const frozen = await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const a = rogueAgent.state();
+          setTimeout(() => {
+            const b = rogueAgent.state();
+            resolve({
+              elapsedDelta: b.elapsed - a.elapsed,
+              moved: a.agents.length === b.agents.length
+                ? a.agents.reduce(
+                    (m, ag, i) =>
+                      Math.max(m, Math.hypot(ag.x - b.agents[i].x, ag.y - b.agents[i].y)),
+                    0,
+                  )
+                : -1,
+            });
+          }, 1200);
+        }),
+    );
+    if (frozen.elapsedDelta > 0.01 || frozen.moved > 0.01) {
+      problems.push(
+        `arena kept running during the draft (clock +${frozen.elapsedDelta}, agents moved ${frozen.moved})`,
+      );
+    } else {
+      console.log('✓ the arena is frozen while the cards are up');
+    }
+
+    await page.screenshot({ path: path.join(BUILD, 'draft.png') });
+
+    const picked = state.offered[1];
+    await page.keyboard.press('2');
+    await settle(600);
+    const after = await page.evaluate(() => rogueAgent.state());
+    if (after.drafting) {
+      problems.push('pressing 2 did not take a card');
+    } else if ((after.upgradesTaken[picked] ?? 0) < 1) {
+      problems.push(`picked ${picked} but it was not recorded as installed`);
+    } else {
+      console.log(`✓ keyboard pick installed ${picked}, run resumed`);
+    }
+  }
+}
+
 await settle(500);
 const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });

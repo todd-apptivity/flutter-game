@@ -46,6 +46,10 @@ Later-stage artwork is ready but remains unused until those features are impleme
 
 ## Generator prompts
 
+For the adaptive techno soundtrack, MIDI source export and audio previews, see
+[`artwork/audio/README.md`](artwork/audio/README.md). Music is synthesized live
+from MIDI note events; its tempo and arrangement respond to health and enemies.
+
 **player_core.png** — "Pixel art sprite sheet, 4 frames horizontal, each 32x32, transparent
 background. A hovering hexagonal server core in bright aqua #20b1b3 with a glowing white center
 ring and three small orbiting data nodes. Frames show the ring pulsing and the nodes rotating.

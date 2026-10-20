@@ -31,42 +31,59 @@ extension type _RogueAgentApi._(JSObject _) implements JSObject {
 void installGameApi(RogueAgentsGame game) {
   bool isReady() => game.isMounted;
 
-  JSObject stateOf() => {
-        'ready': isReady(),
-        'paused': game.paused,
-        'player': isReady()
-            ? {'x': game.player.position.x, 'y': game.player.position.y}
-            : null,
-        'agents': isReady()
-            ? game.world.children
-                .whereType<Agent>()
-                .map((a) => {
-                      'id': a.spec.id,
-                      'x': a.position.x,
-                      'y': a.position.y,
-                      'hp': a.hp,
-                    })
-                .toList()
-            : <Object>[],
-        'projectiles': isReady()
-            ? game.world.children
-                .whereType<Projectile>()
-                .map((p) => {'x': p.position.x, 'y': p.position.y})
-                .toList()
-            : <Object>[],
-        'tokens': isReady()
-            ? game.world.children
-                .whereType<Token>()
-                .map((t) => {'x': t.position.x, 'y': t.position.y})
-                .toList()
-            : <Object>[],
-        'xp': game.xp,
-        'level': game.level,
-        'tokensCollected': game.tokensCollected,
-        'integrity': game.integrity,
-        'kills': game.kills,
-        'elapsed': game.elapsed,
-      }.jsify() as JSObject;
+  JSObject stateOf() =>
+      {
+            'ready': isReady(),
+            'paused': game.paused,
+            'player': isReady()
+                ? {'x': game.player.position.x, 'y': game.player.position.y}
+                : null,
+            'agents': isReady()
+                ? game.world.children
+                      .whereType<Agent>()
+                      .map(
+                        (a) => {
+                          'id': a.spec.id,
+                          'x': a.position.x,
+                          'y': a.position.y,
+                          'hp': a.hp,
+                        },
+                      )
+                      .toList()
+                : <Object>[],
+            'projectiles': isReady()
+                ? game.world.children
+                      .whereType<Projectile>()
+                      .map((p) => {'x': p.position.x, 'y': p.position.y})
+                      .toList()
+                : <Object>[],
+            'tokens': isReady()
+                ? game.world.children
+                      .whereType<Token>()
+                      .map((t) => {'x': t.position.x, 'y': t.position.y})
+                      .toList()
+                : <Object>[],
+            'xp': game.xp,
+            'level': game.level,
+            'drafting': game.isDrafting,
+            'offered': game.offered.map((u) => u.id).toList(),
+            'upgradesTaken': Map<String, int>.from(game.upgradesTaken),
+            'tokensCollected': game.tokensCollected,
+            'integrity': game.integrity,
+            'kills': game.kills,
+            'elapsed': game.elapsed,
+            'music': {
+              'enabled': game.music.enabled,
+              'started': game.music.started,
+              'suspended': game.music.suspended,
+              'bpm': game.music.bpm,
+              'targetBpm': game.music.targetBpm,
+              'bufferedBytes': game.music.bufferedBytes,
+              'renderedSeconds': game.music.renderedSeconds,
+              'error': game.music.error,
+            },
+          }.jsify()
+          as JSObject;
 
   _globalThis.setProperty(
     'rogueAgent'.toJS,
