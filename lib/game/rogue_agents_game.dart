@@ -51,7 +51,7 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   bool _musicInBackground = false;
 
   void _syncMusicPause() =>
-      music.setPaused(paused || isDrafting || _musicInBackground);
+      music.setPaused(paused || isFrozen || _musicInBackground);
 
   /// Weapons the player currently owns. Stage 7 upgrades add to this.
   final weapons = <Weapon>[];
