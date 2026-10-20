@@ -31,4 +31,17 @@ class GameConfig {
   /// Mouse steering ignores anything closer than this, so the core doesn't
   /// vibrate when it is sitting under the cursor.
   static const pointerDeadZone = 6.0;
+
+  /// Seconds between agent spawns. Stage 9's wave table takes this over.
+  static const spawnInterval = 1.1;
+
+  /// Grace period before the first agent appears, so a run does not open with
+  /// something already in your face.
+  static const firstSpawnDelay = 1.5;
+
+  /// How far beyond the arena edge agents appear, on top of their own size.
+  static const spawnOffscreen = 16.0;
+
+  /// Hard cap on live agents, so a long run cannot tank the frame rate.
+  static const maxAgents = 120;
 }

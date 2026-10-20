@@ -1,7 +1,9 @@
 import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_game/config/agents.dart';
 import 'package:flutter_game/config/game_config.dart';
+import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -84,6 +86,49 @@ void main() {
       expect(
         game.player.position.x,
         greaterThanOrEqualTo(game.arena.bounds.left + half - 0.001),
+      );
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'agents spawn outside the arena on the interval',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.world.children.whereType<Agent>(), isEmpty);
+
+      // The grace period, then one interval: exactly two spawns are due.
+      game.update(GameConfig.firstSpawnDelay + 0.01);
+      game.update(GameConfig.spawnInterval + 0.01);
+      await game.ready();
+
+      final agents = game.world.children.whereType<Agent>().toList();
+      expect(agents, hasLength(2));
+      for (final agent in agents) {
+        expect(game.arena.bounds.contains(agent.position.toOffset()), isFalse);
+      }
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a spawned agent closes on the control plane',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      final agent = game.spawner.spawn(agentSpec('scraper'));
+      // onLoad is async (it tries for a sprite), so the agent only mounts and
+      // starts updating once that future settles.
+      await game.ready();
+      final before = agent.position.distanceTo(game.player.position);
+
+      for (var i = 0; i < 60; i++) {
+        game.update(1 / 60);
+      }
+
+      expect(
+        agent.position.distanceTo(game.player.position),
+        lessThan(before - 50),
       );
     },
   );

@@ -139,8 +139,29 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
   }
 }
 
-await page.mouse.move(640, 360, { steps: 6 });
-await settle(1200);
+// Agents must appear from outside the arena and close on the control plane.
+{
+  await page.mouse.move(640, 360, { steps: 6 });
+  await settle(3000);
+  const state = await page.evaluate(() => rogueAgent.state());
+  if (state.agents.length === 0) {
+    problems.push('no agents spawned after 3s');
+  } else {
+    const dist = (a) => Math.hypot(a.x - state.player.x, a.y - state.player.y);
+    const before = state.agents.map(dist);
+    await settle(1500);
+    const after = await page.evaluate(() => rogueAgent.state());
+    const closed = after.agents.length >= state.agents.length;
+    const nearer = Math.min(...after.agents.map(dist)) < Math.min(...before);
+    if (!closed || !nearer) {
+      problems.push('agents are not closing on the control plane');
+    } else {
+      console.log(`✓ ${after.agents.length} agents spawned and closing in`);
+    }
+  }
+}
+
+await settle(1500);
 const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });
 console.log(`✓ screenshot written to ${shot}`);

@@ -1,6 +1,7 @@
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
+import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 
 @JS('globalThis')
@@ -34,6 +35,17 @@ void installGameApi(RogueAgentsGame game) {
         'player': isReady()
             ? {'x': game.player.position.x, 'y': game.player.position.y}
             : null,
+        'agents': isReady()
+            ? game.world.children
+                .whereType<Agent>()
+                .map((a) => {
+                      'id': a.spec.id,
+                      'x': a.position.x,
+                      'y': a.position.y,
+                      'hp': a.hp,
+                    })
+                .toList()
+            : <Object>[],
       }.jsify() as JSObject;
 
   _globalThis.setProperty(

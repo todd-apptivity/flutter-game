@@ -8,6 +8,7 @@ import 'package:flutter_game/config/palette.dart';
 import 'package:flutter_game/game/arena.dart';
 import 'package:flutter_game/game/input_controller.dart';
 import 'package:flutter_game/game/player.dart';
+import 'package:flutter_game/game/spawner.dart';
 
 /// Rogue Agents: you are the control plane. Everything else wants in.
 class RogueAgentsGame extends FlameGame with KeyboardEvents {
@@ -24,6 +25,7 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   late final Arena arena;
   late final Player player;
   late final InputController input;
+  late final Spawner spawner;
 
   @override
   Color backgroundColor() => Palette.background;
@@ -37,8 +39,9 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     arena = Arena();
     input = InputController();
     player = Player()..position = GameConfig.designSize / 2;
+    spawner = Spawner();
 
-    await world.addAll([arena, input, player]);
+    await world.addAll([arena, input, player, spawner]);
   }
 
   @override
