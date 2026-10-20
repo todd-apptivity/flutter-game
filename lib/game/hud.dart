@@ -88,7 +88,7 @@ class Hud extends PositionComponent with HasGameReference<RogueAgentsGame> {
 
     final top = _pad + 12;
     final back = Rect.fromLTWH(_pad, top, _barWidth, _barHeight);
-    final fraction = (game.integrity / GameConfig.maxIntegrity).clamp(0.0, 1.0);
+    final fraction = (game.integrity / game.maxIntegrity).clamp(0.0, 1.0);
 
     canvas
       ..drawRect(back, _barBack)

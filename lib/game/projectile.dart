@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flutter_game/config/game_config.dart';
+import 'package:flutter_game/config/palette.dart';
 import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
@@ -33,6 +34,13 @@ class Projectile extends PositionComponent
   /// How many more agents it may pass through.
   late int pierce = spec.pierce;
 
+  /// Muzzle velocity and travel limit, both scaled by upgrades at fire time.
+  late double speed = spec.projectileSpeed;
+  late double range = spec.range;
+
+  /// Crits are drawn hotter and larger so a lucky hit reads on screen.
+  bool isCrit = false;
+
   /// Distance travelled, against [WeaponSpec.range].
   double _travelled = 0;
 
@@ -60,12 +68,12 @@ class Projectile extends PositionComponent
 
   @override
   void update(double dt) {
-    final step = spec.projectileSpeed * dt;
+    final step = speed * dt;
     position += direction * step;
     _travelled += step;
 
     final out = GameConfig.spawnOffscreen * 4;
-    if (_travelled >= spec.range ||
+    if (_travelled >= range ||
         !game.arena.bounds.inflate(out).contains(position.toOffset())) {
       removeFromParent();
     }
@@ -73,6 +81,15 @@ class Projectile extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+    if (isCrit) {
+      // Crits draw a bright halo behind whatever the packet looks like.
+      canvas.drawCircle(
+        (size / 2).toOffset(),
+        size.x * 0.75,
+        Paint()..color = Palette.playerCore.withValues(alpha: 0.35),
+      );
+    }
+
     final sprite = _sprite;
     if (sprite != null) {
       sprite.render(canvas, size: size, overridePaint: _spritePaint);

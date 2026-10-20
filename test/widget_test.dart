@@ -526,4 +526,138 @@ void main() {
       expect(game.integrity, GameConfig.maxIntegrity);
     },
   );
+
+  testWithGame<RogueAgentsGame>(
+    'every upgrade in the catalog applies without blowing up',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      for (final spec in upgradeCatalog) {
+        spec.apply(game);
+      }
+
+      // Sanity: nothing produced a nonsense stat.
+      expect(game.weapons.single.cooldown, greaterThan(0));
+      expect(game.weapons.single.damage, greaterThan(0));
+      expect(game.critChance, inInclusiveRange(0, 1));
+      expect(game.integrity, lessThanOrEqualTo(game.maxIntegrity));
+      expect(game.playerSpeedMultiplier, greaterThan(1));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'capacity raises the ceiling and repairs to match',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.damagePlayer(50);
+      upgradeSpec('capacity').apply(game);
+
+      expect(game.maxIntegrity, GameConfig.maxIntegrity + 30);
+      expect(game.integrity, closeTo(80, 0.001));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'hardening reduces incoming damage',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      upgradeSpec('hardening').apply(game);
+      game.damagePlayer(100);
+
+      expect(game.integrity, closeTo(GameConfig.maxIntegrity - 82, 0.001));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'self-healing regenerates over time but not past the cap',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.damagePlayer(40);
+      upgradeSpec('self_healing').apply(game);
+      await tick(game, 60);
+
+      expect(game.integrity, closeTo(61.2, 0.1));
+
+      // Near the ceiling, a second of regen cannot overshoot it. (Ticking for
+      // a full minute instead would just let the swarm kill the player.)
+      game.integrity = game.maxIntegrity - 0.5;
+      await tick(game, 60);
+      expect(game.integrity, game.maxIntegrity);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'token arbitrage scales banked xp',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      upgradeSpec('token_arbitrage').apply(game);
+      game.collectToken(Token(position: Vector2.zero(), value: 2));
+
+      expect(game.xp, 3);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'crit upgrades change what a packet carries',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.rollCrit(), isFalse);
+
+      // Guaranteed crits, so the assertion is deterministic.
+      game.critChance = 1;
+      upgradeSpec('root_access').apply(game);
+
+      game.weapons.single.fireAt(game.player.position + Vector2(100, 0));
+      await game.ready();
+
+      final shot = game.world.children.whereType<Projectile>().last;
+      expect(shot.isCrit, isTrue);
+      expect(shot.damage, closeTo(game.weapons.single.damage * 3.5, 0.001));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'Root Access is only offered once a crit chance exists',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final root = upgradeSpec('root_access');
+
+      expect(game.isUpgradeAvailable(root), isFalse);
+
+      upgradeSpec('speculative_exec').apply(game);
+      expect(game.isUpgradeAvailable(root), isTrue);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'tail latency speeds up and extends packets',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final weapon = game.weapons.single;
+      final baseRange = weapon.range;
+      final baseSpeed = weapon.projectileSpeed;
+
+      upgradeSpec('tail_latency').apply(game);
+
+      expect(weapon.range, closeTo(baseRange * 1.2, 0.001));
+      expect(weapon.projectileSpeed, closeTo(baseSpeed * 1.3, 0.001));
+
+      weapon.fireAt(game.player.position + Vector2(0, -100));
+      await game.ready();
+      final shot = game.world.children.whereType<Projectile>().last;
+      expect(shot.speed, closeTo(baseSpeed * 1.3, 0.001));
+    },
+  );
 }

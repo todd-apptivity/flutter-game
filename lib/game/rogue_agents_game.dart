@@ -81,6 +81,29 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   int weaponExtraProjectiles = 0;
   int weaponExtraPierce = 0;
 
+  /// Run-wide combat scaling, read live by weapons and projectiles.
+  double weaponRangeMultiplier = 1;
+  double projectileSpeedMultiplier = 1;
+
+  /// Chance (0..1) for a packet to crit, and what a crit multiplies damage by.
+  double critChance = 0;
+  double critMultiplier = 2;
+
+  /// Integrity repaired per second.
+  double regenPerSecond = 0;
+
+  /// Incoming contact damage is scaled by this.
+  double damageTakenMultiplier = 1;
+
+  /// XP multiplier applied as tokens are absorbed.
+  double tokenValueMultiplier = 1;
+
+  /// Maximum integrity, which some upgrades raise.
+  double maxIntegrity = GameConfig.maxIntegrity;
+
+  /// Rolls a crit for one packet.
+  bool rollCrit() => critChance > 0 && _random.nextDouble() < critChance;
+
   /// How many times each upgrade has been taken.
   final upgradesTaken = <String, int>{};
 
@@ -141,8 +164,9 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     _syncMusicPause();
     if (isDrafting) return;
     elapsed += dt;
+    if (regenPerSecond > 0) repairPlayer(regenPerSecond * dt);
     music.updateDanger(
-      healthFraction: integrity / GameConfig.maxIntegrity,
+      healthFraction: integrity / maxIntegrity,
       enemies: world.children
           .whereType<Agent>()
           .where((agent) => !agent.isRemoving && agent.hp > 0)
@@ -153,7 +177,8 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// Contact damage from an agent standing on the control plane.
   void damagePlayer(double amount) {
     if (amount <= 0) return;
-    final applied = amount.clamp(0.0, integrity);
+    final applied =
+        (amount * damageTakenMultiplier).clamp(0.0, integrity);
     integrity -= applied;
     integrityLost += applied;
   }
@@ -167,7 +192,7 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// Called by a token as it is absorbed.
   void collectToken(Token token) {
     tokensCollected++;
-    xp += token.value;
+    xp += (token.value * tokenValueMultiplier).round();
 
     while (xp >= xpForNextLevel) {
       xp -= xpForNextLevel;
@@ -190,11 +215,33 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
       return;
     }
 
-    pool.shuffle(_random);
     offered
       ..clear()
-      ..addAll(pool.take(3));
+      ..addAll(_drawWeighted(pool, 3));
     draftOverlay.show(offered);
+  }
+
+  /// Draws [count] distinct specs, weighted by [UpgradeSpec.weight], so rare
+  /// cards stay rare without ever being unreachable.
+  List<UpgradeSpec> _drawWeighted(List<UpgradeSpec> pool, int count) {
+    final remaining = [...pool];
+    final drawn = <UpgradeSpec>[];
+
+    while (drawn.length < count && remaining.isNotEmpty) {
+      final total = remaining.fold<int>(0, (sum, s) => sum + s.weight);
+      var roll = _random.nextInt(total);
+      var picked = remaining.last;
+      for (final spec in remaining) {
+        roll -= spec.weight;
+        if (roll < 0) {
+          picked = spec;
+          break;
+        }
+      }
+      drawn.add(picked);
+      remaining.remove(picked);
+    }
+    return drawn;
   }
 
   bool isUpgradeAvailable(UpgradeSpec spec) {
@@ -219,7 +266,7 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
 
   /// Repairs the control plane, never above the maximum.
   void repairPlayer(double amount) {
-    integrity = (integrity + amount).clamp(0.0, GameConfig.maxIntegrity);
+    integrity = (integrity + amount).clamp(0.0, maxIntegrity);
   }
 
   /// Gives the player a weapon. Upgrades call this to add a second one.

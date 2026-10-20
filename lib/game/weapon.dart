@@ -24,6 +24,11 @@ class Weapon extends Component with HasGameReference<RogueAgentsGame> {
   double get damage => spec.damage * damageMultiplier;
   int get projectileCount => spec.projectileCount + extraProjectiles;
 
+  /// Range and muzzle velocity scale with run-wide upgrades.
+  double get range => spec.range * game.weaponRangeMultiplier;
+  double get projectileSpeed =>
+      spec.projectileSpeed * game.projectileSpeedMultiplier;
+
   @override
   void update(double dt) {
     _cooldown -= dt;
@@ -39,7 +44,7 @@ class Weapon extends Component with HasGameReference<RogueAgentsGame> {
   /// Closest agent within range, or null when nothing is worth shooting.
   Agent? nearestAgent() {
     Agent? best;
-    var bestDistance = spec.range;
+    var bestDistance = range;
     final origin = game.player.position;
 
     for (final agent in game.world.children.whereType<Agent>()) {
@@ -68,13 +73,18 @@ class Weapon extends Component with HasGameReference<RogueAgentsGame> {
 
     for (var i = 0; i < count; i++) {
       final direction = aim.normalized()..rotate(start + spec.spread * i);
+      // Crits are rolled per packet, so a fan-out volley can part-crit.
+      final crit = game.rollCrit();
       game.world.add(
         Projectile(
           spec: spec,
           position: origin.clone(),
           direction: direction,
         )
-          ..damage = damage
+          ..damage = crit ? damage * game.critMultiplier : damage
+          ..isCrit = crit
+          ..speed = projectileSpeed
+          ..range = range
           ..pierce = spec.pierce + extraPierce,
       );
     }
