@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
 import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/game/agent.dart';
+import 'package:flutter_game/game/orbit_node.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 
@@ -29,8 +32,35 @@ class Weapon extends Component with HasGameReference<RogueAgentsGame> {
   double get projectileSpeed =>
       spec.projectileSpeed * game.projectileSpeedMultiplier;
 
+  /// Orbit weapons spin up their nodes once and then do nothing per frame;
+  /// the nodes own their own sweep and hit detection.
+  @override
+  Future<void> onLoad() async {
+    if (spec.kind != WeaponKind.orbit) return;
+    await _spinUpNodes();
+  }
+
+  Future<void> _spinUpNodes() async {
+    final count = spec.orbitNodes + extraProjectiles;
+    await game.world.addAll([
+      for (var i = 0; i < count; i++)
+        OrbitNode(weapon: this, phase: math.pi * 2 * i / count),
+    ]);
+  }
+
+  /// Re-spins the ring so a multishot upgrade adds a node mid-run.
+  Future<void> refreshNodes() async {
+    if (spec.kind != WeaponKind.orbit) return;
+    for (final node in game.world.children.whereType<OrbitNode>().toList()) {
+      if (node.weapon == this) node.removeFromParent();
+    }
+    await _spinUpNodes();
+  }
+
   @override
   void update(double dt) {
+    if (spec.kind == WeaponKind.orbit) return;
+
     _cooldown -= dt;
     if (_cooldown > 0) return;
 

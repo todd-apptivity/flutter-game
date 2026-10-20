@@ -3,10 +3,13 @@ import 'dart:ui';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/palette.dart';
 
-/// How a weapon delivers damage. Stage 10 adds the orbiting kind.
+/// How a weapon delivers damage.
 enum WeaponKind {
   /// Fires projectiles at the nearest agent in range.
   projectile,
+
+  /// Spins nodes around the control plane that damage what they touch.
+  orbit,
 }
 
 /// One automatic defense. Adding a weapon is one entry in [weaponCatalog].
@@ -26,6 +29,11 @@ class WeaponSpec {
     this.projectileFrameSize = 8,
     this.color = Palette.projectile,
     this.spritePath,
+    this.orbitRadius = 110,
+    this.orbitSpeed = 2.4,
+    this.orbitNodes = 2,
+    this.orbitNodeSize = 20,
+    this.hitCooldown = 0.55,
   });
 
   final String id;
@@ -55,6 +63,15 @@ class WeaponSpec {
   final Color color;
   final String? spritePath;
 
+  /// Orbit weapons only: how far out the nodes ride, how fast they sweep
+  /// (radians per second), how many there are, how big they are, and how
+  /// often one node may re-hit the same agent.
+  final double orbitRadius;
+  final double orbitSpeed;
+  final int orbitNodes;
+  final double orbitNodeSize;
+  final double hitCooldown;
+
   /// On-screen projectile size in world units.
   double get projectileSize => projectileFrameSize * GameConfig.pixelScale;
 }
@@ -69,6 +86,21 @@ const weaponCatalog = <WeaponSpec>[
     damage: 5,
     range: 420,
     spritePath: 'proj_packet.png',
+  ),
+  WeaponSpec(
+    id: 'rate_limiter',
+    name: 'Rate Limiter',
+    blurb: 'Throttle nodes orbit the control plane and shred what touches them.',
+    kind: WeaponKind.orbit,
+    cooldown: 0,
+    damage: 9,
+    range: 0,
+    orbitRadius: 118,
+    orbitSpeed: 2.3,
+    orbitNodes: 2,
+    orbitNodeSize: 22,
+    hitCooldown: 0.5,
+    spritePath: 'orbit_node.png',
   ),
 ];
 

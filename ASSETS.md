@@ -17,15 +17,13 @@ combination of present/missing assets runs.
 | Scraper agent | `assets/images/agent_scraper.png` | 24x24 | 2 (h-strip, 48x24) | yes | 3 | ready |
 | Packet projectile | `assets/images/proj_packet.png` | 8x8 | 1 | yes | 4 | ready |
 | Token pickup | `assets/images/pickup_token.png` | 12x12 | 4 (h-strip, 48x12) | yes | 6 | ready |
-
-Assets below are planned by later stages and not loaded yet; they are listed so
-art can be generated ahead of time.
-
-| Asset | Path | Size (px) | Frames | Transparent | Stage | Status |
-|---|---|---|---|---|---|---|
-| Crawler agent | `assets/images/agent_crawler.png` | 40x40 | 2 (h-strip, 80x40) | yes | 9 | ready |
 | Swarm-let agent | `assets/images/agent_swarmlet.png` | 12x12 | 2 (h-strip, 24x12) | yes | 9 | ready |
+| Crawler agent | `assets/images/agent_crawler.png` | 40x40 | 2 (h-strip, 80x40) | yes | 9 | ready |
 | Injector agent | `assets/images/agent_injector.png` | 28x28 | 2 (h-strip, 56x28) | yes | 9 | ready |
+| Rate Limiter node | `assets/images/orbit_node.png` | 11x11 | 1 | yes | 10 | **placeholder** |
+
+Every asset above is loaded by the game today. `orbit_node.png` is the only one
+still missing; the game draws a shape for it until it arrives.
 
 ## Delivered artwork
 
@@ -79,6 +77,10 @@ red eye #bc2222, small antenna. Frames alternate a charging glow in the barrel."
 
 **proj_packet.png** — "Pixel art, single 8x8 frame, transparent background. A small glowing aqua
 #20b1b3 data packet: bright square core with a faint white highlight and a 1px darker aqua outline."
+
+**orbit_node.png** — "Pixel art, single 11x11 frame, transparent background. A small aqua #20b1b3
+throttle node: a bright diamond core with a thin white highlight and two short trailing arc marks
+on one side suggesting rotation. Crisp 1px outline, no anti-aliasing, no background."
 
 **pickup_token.png** — "Pixel art sprite sheet, 4 frames horizontal, each 12x12, transparent
 background. A spinning aqua #20b1b3 hexagonal token coin with a white highlight, shown rotating

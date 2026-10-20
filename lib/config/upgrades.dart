@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 
 /// One choice on the level-up screen.
@@ -155,6 +158,16 @@ const upgradeCatalog = <UpgradeSpec>[
     apply: _coldStart,
   ),
   UpgradeSpec(
+    id: 'rate_limiter',
+    name: 'Deploy Rate Limiter',
+    blurb: 'Throttle nodes orbit the control plane and shred what they touch.',
+    tag: 'WEAPON',
+    maxStacks: 1,
+    weight: 8,
+    available: _lacksRateLimiter,
+    apply: _deployRateLimiter,
+  ),
+  UpgradeSpec(
     id: 'root_access',
     name: 'Root Access',
     blurb: 'Crits deal 3.5x instead of 2x. Needs a crit chance first.',
@@ -186,9 +199,17 @@ void _payload(RogueAgentsGame game) {
 void _fanout(RogueAgentsGame game) {
   for (final weapon in game.weapons) {
     weapon.extraProjectiles += 1;
+    // An orbit weapon spends the extra on another node in the ring.
+    unawaited(weapon.refreshNodes());
   }
   game.weaponExtraProjectiles += 1;
 }
+
+bool _lacksRateLimiter(RogueAgentsGame game) =>
+    game.weapons.every((w) => w.spec.id != 'rate_limiter');
+
+void _deployRateLimiter(RogueAgentsGame game) =>
+    unawaited(game.equip(weaponSpec('rate_limiter')));
 
 void _zeroCopy(RogueAgentsGame game) {
   for (final weapon in game.weapons) {

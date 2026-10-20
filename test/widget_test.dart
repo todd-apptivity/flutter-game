@@ -8,6 +8,7 @@ import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/config/waves.dart';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/injection.dart';
+import 'package:flutter_game/game/orbit_node.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_game/game/token.dart';
@@ -540,9 +541,11 @@ void main() {
         spec.apply(game);
       }
 
-      // Sanity: nothing produced a nonsense stat.
-      expect(game.weapons.single.cooldown, greaterThan(0));
-      expect(game.weapons.single.damage, greaterThan(0));
+      // Sanity: nothing produced a nonsense stat. (The catalog now includes a
+      // card that equips a second weapon, so this is no longer `single`.)
+      expect(game.weapons.first.cooldown, greaterThan(0));
+      expect(game.weapons.first.damage, greaterThan(0));
+      expect(game.weapons.map((w) => w.spec.id), contains('rate_limiter'));
       expect(game.critChance, inInclusiveRange(0, 1));
       expect(game.integrity, lessThanOrEqualTo(game.maxIntegrity));
       expect(game.playerSpeedMultiplier, greaterThan(1));
@@ -721,15 +724,19 @@ void main() {
       await game.world.add(agent);
       await game.ready();
 
-      await tick(game, 60 * 5);
+      // Watch the whole window: payloads are consumed when they land, so
+      // sampling only the final frame is a coin flip.
+      var sawInjection = false;
+      for (var i = 0; i < 60 * 5; i++) {
+        await tick(game, 1);
+        sawInjection |= game.world.children.whereType<Injection>().isNotEmpty;
+      }
 
       // Closed to roughly its stand-off distance, not onto the player.
       final distance = agent.position.distanceTo(game.player.position);
       expect(distance, greaterThan(spec.preferredRange * 0.7));
       expect(distance, lessThan(spec.preferredRange * 1.25));
-
-      // And it has been shooting.
-      expect(game.world.children.whereType<Injection>(), isNotEmpty);
+      expect(sawInjection, isTrue);
     },
   );
 
@@ -772,6 +779,110 @@ void main() {
 
       expect(game.waveBanner, waveTable[1].label);
       expect(game.waveBannerTimer, greaterThan(0));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'the Rate Limiter spins nodes around the player',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.world.children.whereType<OrbitNode>(), isEmpty);
+
+      final spec = weaponSpec('rate_limiter');
+      await game.equip(spec);
+      await game.ready();
+
+      final nodes = game.world.children.whereType<OrbitNode>().toList();
+      expect(nodes, hasLength(spec.orbitNodes));
+
+      // Each sits on the ring, and they are spread apart, not stacked.
+      for (final node in nodes) {
+        expect(
+          node.position.distanceTo(game.player.position),
+          closeTo(spec.orbitRadius, 0.001),
+        );
+      }
+      expect(
+        nodes[0].position.distanceTo(nodes[1].position),
+        greaterThan(spec.orbitRadius),
+      );
+
+      // The ring sweeps, and it follows the player rather than the origin.
+      final before = nodes.first.position.clone();
+      await tick(game, 20);
+      expect(nodes.first.position, isNot(before));
+      expect(
+        nodes.first.position.distanceTo(game.player.position),
+        closeTo(spec.orbitRadius, 0.001),
+      );
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'an orbit node grinds an agent down on its own cooldown',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final spec = weaponSpec('rate_limiter');
+      final weapon = await game.equip(spec);
+      await game.ready();
+
+      final node = game.world.children.whereType<OrbitNode>().first;
+      final agent = Agent(
+        spec: agentSpec('crawler'),
+        position: node.position.clone(),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      // First contact lands one hit, and the node is not consumed.
+      await tick(game, 1);
+      expect(agent.hp, closeTo(agentSpec('crawler').hp - weapon.damage, 0.001));
+      expect(node.isMounted, isTrue);
+
+      // Immediately after, the same node cannot re-hit it.
+      final afterFirst = agent.hp;
+      agent.position = node.position.clone();
+      await tick(game, 2);
+      expect(agent.hp, afterFirst);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'Deploy Rate Limiter is offered once and equips the weapon',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final card = upgradeSpec('rate_limiter');
+
+      expect(game.isUpgradeAvailable(card), isTrue);
+
+      card.apply(game);
+      await game.ready();
+
+      expect(game.weapons.map((w) => w.spec.id), contains('rate_limiter'));
+      expect(game.isUpgradeAvailable(card), isFalse);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'Request Fan-Out adds a node to the ring',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final spec = weaponSpec('rate_limiter');
+      await game.equip(spec);
+      await game.ready();
+
+      upgradeSpec('fanout').apply(game);
+      await game.ready();
+      await tick(game, 2);
+
+      expect(
+        game.world.children.whereType<OrbitNode>(),
+        hasLength(spec.orbitNodes + 1),
+      );
     },
   );
 }

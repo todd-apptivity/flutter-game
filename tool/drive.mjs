@@ -84,6 +84,17 @@ console.log('✓ booted; window.rogueAgent.ready() === true');
 const pos = async () => (await page.evaluate(() => rogueAgent.state())).player;
 const settle = (ms = 600) => page.waitForTimeout(ms);
 
+// A draft freezes the whole simulation until a card is taken, which is correct
+// behaviour and will silently stall any later check that expects time to pass.
+async function clearDraft() {
+  for (let i = 0; i < 6; i++) {
+    const { drafting } = await page.evaluate(() => rogueAgent.state());
+    if (!drafting) return;
+    await page.keyboard.press('1');
+    await settle(250);
+  }
+}
+
 // Real key events must reach the game and move the core right.
 {
   const before = await pos();
@@ -348,6 +359,7 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
     );
     await page.evaluate(() => rogueAgent.setClock(150));
     await settle(600);
+    await clearDraft();
     const s = await page.evaluate(() => rogueAgent.state());
     s.agents.forEach((a) => seen.add(a.id));
     injections = Math.max(injections, s.injections.length);
@@ -365,6 +377,60 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
   } else {
     console.log(`✓ injectors fire payloads (${injections} in flight at peak)`);
   }
+}
+
+// The Rate Limiter must spin up, follow the player, and kill things.
+{
+  await clearDraft();
+  await page.evaluate(() => rogueAgent.equip('rate_limiter'));
+  await settle(400);
+
+  const spun = await page.evaluate(() => rogueAgent.state());
+  if (spun.orbitNodes.length === 0) {
+    problems.push('Rate Limiter equipped but no orbit nodes appeared');
+  } else {
+    const radii = spun.orbitNodes.map((n) =>
+      Math.hypot(n.x - spun.player.x, n.y - spun.player.y),
+    );
+    const offRing = radii.filter((r) => Math.abs(r - 118) > 2);
+    if (offRing.length) {
+      problems.push(`orbit nodes are off the ring: ${radii.map((r) => r.toFixed(0))}`);
+    } else {
+      console.log(`✓ Rate Limiter spun up ${spun.orbitNodes.length} nodes on the ring`);
+    }
+  }
+
+  // Drive through the swarm; the ring should rack up kills by contact.
+  const killsBefore = spun.kills;
+  const clockBefore = spun.elapsed;
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.move(
+      420 + ((i * 113) % 440),
+      250 + ((i * 67) % 220),
+      { steps: 5 },
+    );
+    await settle(500);
+    await clearDraft();
+  }
+  const after = await page.evaluate(() => rogueAgent.state());
+  const stillOnRing = after.orbitNodes.every(
+    (n) => Math.abs(Math.hypot(n.x - after.player.x, n.y - after.player.y) - 118) < 2,
+  );
+  if (!stillOnRing) {
+    problems.push('orbit nodes stopped tracking the player');
+  } else if (after.kills <= killsBefore) {
+    problems.push(
+      `no kills after deploying the Rate Limiter ` +
+        `(kills ${killsBefore} -> ${after.kills}, agents ${after.agents.length}, ` +
+        `weapons ${after.weapons}, wave "${after.wave}", ` +
+        `game clock advanced ${(after.elapsed - clockBefore).toFixed(2)}s)`,
+    );
+  } else {
+    console.log(
+      `✓ the ring tracks the player and kills (${after.kills - killsBefore} more agents)`,
+    );
+  }
+  await page.screenshot({ path: path.join(BUILD, 'orbit.png') });
 }
 
 await settle(500);

@@ -2,7 +2,9 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
 import 'package:flutter_game/game/agent.dart';
+import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/game/injection.dart';
+import 'package:flutter_game/game/orbit_node.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_game/game/token.dart';
@@ -18,6 +20,7 @@ extension type _RogueAgentApi._(JSObject _) implements JSObject {
     JSFunction setPaused,
     JSFunction step,
     JSFunction setClock,
+    JSFunction equip,
   });
 }
 
@@ -79,6 +82,13 @@ void installGameApi(RogueAgentsGame game) {
                       .map((i) => {'x': i.position.x, 'y': i.position.y})
                       .toList()
                 : <Object>[],
+            'orbitNodes': isReady()
+                ? game.world.children
+                      .whereType<OrbitNode>()
+                      .map((n) => {'x': n.position.x, 'y': n.position.y})
+                      .toList()
+                : <Object>[],
+            'weapons': game.weapons.map((w) => w.spec.id).toList(),
             'tokensCollected': game.tokensCollected,
             'integrity': game.integrity,
             'kills': game.kills,
@@ -111,6 +121,10 @@ void installGameApi(RogueAgentsGame game) {
       // a later wave without waiting three minutes for it.
       setClock: ((double seconds) {
         if (isReady()) game.elapsed = seconds;
+      }).toJS,
+      // Dev-only: hand the player a weapon without waiting for the draft.
+      equip: ((String id) {
+        if (isReady()) game.equip(weaponSpec(id));
       }).toJS,
     ),
   );
