@@ -885,4 +885,148 @@ void main() {
       );
     },
   );
+
+  testWithGame<RogueAgentsGame>(
+    'running out of integrity ends the run and freezes everything',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.isOver, isFalse);
+
+      final agent = Agent(
+        spec: agentSpec('scraper'),
+        position: game.player.position + Vector2(300, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      game.damagePlayer(GameConfig.maxIntegrity);
+      await game.ready();
+
+      expect(game.isOver, isTrue);
+      expect(game.integrity, 0);
+      expect(game.gameOverOverlay.isVisible, isTrue);
+
+      // The arena is stopped: no movement, no clock, no spawns.
+      final agentAt = agent.position.clone();
+      final clock = game.elapsed;
+      final agentCount = game.world.children.whereType<Agent>().length;
+      await tick(game, 120);
+
+      expect(agent.position, agentAt);
+      expect(game.elapsed, clock);
+      expect(game.world.children.whereType<Agent>(), hasLength(agentCount));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'the end screen arms after a beat, so a stray click cannot skip it',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.damagePlayer(999);
+      expect(game.gameOverOverlay.isArmed, isFalse);
+
+      await tick(game, (GameConfig.gameOverArmingDelay * 60).ceil() + 2);
+      expect(game.gameOverOverlay.isArmed, isTrue);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a death during a draft closes the draft',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.levelUp();
+      await game.ready();
+      expect(game.isDrafting, isTrue);
+
+      game.damagePlayer(999);
+
+      expect(game.isDrafting, isFalse);
+      expect(game.draftOverlay.isVisible, isFalse);
+      expect(game.gameOverOverlay.isVisible, isTrue);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'restart clears the board and every accumulated stat',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      // Build up a messy run: upgrades, a second weapon, bodies on the floor.
+      upgradeSpec('payload').apply(game);
+      upgradeSpec('autoscale').apply(game);
+      upgradeSpec('speculative_exec').apply(game);
+      upgradeSpec('rate_limiter').apply(game);
+      await game.ready();
+
+      await game.world.add(
+        Agent(
+          spec: agentSpec('crawler'),
+          position: game.player.position + Vector2(200, 0),
+        ),
+      );
+      await game.world.add(Token(position: Vector2(100, 100), value: 3));
+      game.weapons.first.fireAt(game.player.position + Vector2(0, -100));
+      game.kills = 7;
+      game.elapsed = 123;
+      game.level = 5;
+      await game.ready();
+
+      game.damagePlayer(999);
+      await game.ready();
+      expect(game.isOver, isTrue);
+
+      await game.restart();
+      await game.ready();
+
+      // Board is clear.
+      expect(game.world.children.whereType<Agent>(), isEmpty);
+      expect(game.world.children.whereType<Projectile>(), isEmpty);
+      expect(game.world.children.whereType<Token>(), isEmpty);
+      expect(game.world.children.whereType<OrbitNode>(), isEmpty);
+
+      // Loadout is back to the starting cannon only.
+      expect(game.weapons.map((w) => w.spec.id), ['packet_cannon']);
+      expect(game.weapons.single.damageMultiplier, 1);
+
+      // Stats and upgrades are wiped.
+      expect(game.isOver, isFalse);
+      expect(game.integrity, GameConfig.maxIntegrity);
+      expect(game.maxIntegrity, GameConfig.maxIntegrity);
+      expect(game.kills, 0);
+      expect(game.elapsed, 0);
+      expect(game.level, 1);
+      expect(game.xp, 0);
+      expect(game.critChance, 0);
+      expect(game.playerSpeedMultiplier, 1);
+      expect(game.upgradesTaken, isEmpty);
+      expect(game.player.position, GameConfig.designSize / 2);
+      expect(game.gameOverOverlay.isVisible, isFalse);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a restarted run spawns and fights again',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.damagePlayer(999);
+      await game.restart();
+      await game.ready();
+
+      // The grace period restarts with the run.
+      await tick(game, 30);
+      expect(game.world.children.whereType<Agent>(), isEmpty);
+
+      await tick(game, 180);
+      expect(game.world.children.whereType<Agent>(), isNotEmpty);
+      expect(game.elapsed, greaterThan(0));
+    },
+  );
 }

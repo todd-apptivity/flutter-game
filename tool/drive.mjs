@@ -84,6 +84,14 @@ console.log('✓ booted; window.rogueAgent.ready() === true');
 const pos = async () => (await page.evaluate(() => rogueAgent.state())).player;
 const settle = (ms = 600) => page.waitForTimeout(ms);
 
+// Keeps a test run alive: the end-of-run freeze is correct behaviour, but it
+// stalls checks that are about something else. The run-end check below turns
+// this off and lets the player die for real.
+async function keepAlive() {
+  await page.evaluate(() => rogueAgent.setIntegrity(100));
+  await clearDraft();
+}
+
 // A draft freezes the whole simulation until a card is taken, which is correct
 // behaviour and will silently stall any later check that expects time to pass.
 async function clearDraft() {
@@ -285,6 +293,10 @@ async function clearDraft() {
       { steps: 6 },
     );
     await settle(700);
+    // A run that ends here would freeze the game and starve this check.
+    if ((await page.evaluate(() => rogueAgent.state())).over) {
+      await page.evaluate(() => rogueAgent.setIntegrity(100));
+    }
     state = await page.evaluate(() => rogueAgent.state());
   }
 
@@ -359,7 +371,7 @@ async function clearDraft() {
     );
     await page.evaluate(() => rogueAgent.setClock(150));
     await settle(600);
-    await clearDraft();
+    await keepAlive();
     const s = await page.evaluate(() => rogueAgent.state());
     s.agents.forEach((a) => seen.add(a.id));
     injections = Math.max(injections, s.injections.length);
@@ -380,23 +392,32 @@ async function clearDraft() {
 }
 
 // The Rate Limiter must spin up, follow the player, and kill things.
+let ringRadius = 0;
 {
-  await clearDraft();
-  await page.evaluate(() => rogueAgent.equip('rate_limiter'));
+  await keepAlive();
+  const owned = await page.evaluate(() => rogueAgent.state().weapons);
+  if (!owned.includes('rate_limiter')) {
+    await page.evaluate(() => rogueAgent.equip('rate_limiter'));
+  }
   await settle(400);
 
   const spun = await page.evaluate(() => rogueAgent.state());
   if (spun.orbitNodes.length === 0) {
     problems.push('Rate Limiter equipped but no orbit nodes appeared');
   } else {
+    // The ring's radius scales with range upgrades, so measure it rather than
+    // hardcoding it; what matters is that every node shares one radius.
     const radii = spun.orbitNodes.map((n) =>
       Math.hypot(n.x - spun.player.x, n.y - spun.player.y),
     );
-    const offRing = radii.filter((r) => Math.abs(r - 118) > 2);
-    if (offRing.length) {
+    ringRadius = radii[0];
+    const offRing = radii.filter((r) => Math.abs(r - ringRadius) > 2);
+    if (offRing.length || ringRadius < 50) {
       problems.push(`orbit nodes are off the ring: ${radii.map((r) => r.toFixed(0))}`);
     } else {
-      console.log(`✓ Rate Limiter spun up ${spun.orbitNodes.length} nodes on the ring`);
+      console.log(
+        `✓ Rate Limiter spun up ${spun.orbitNodes.length} nodes on a ${ringRadius.toFixed(0)}px ring`,
+      );
     }
   }
 
@@ -410,11 +431,13 @@ async function clearDraft() {
       { steps: 5 },
     );
     await settle(500);
-    await clearDraft();
+    await keepAlive();
   }
   const after = await page.evaluate(() => rogueAgent.state());
   const stillOnRing = after.orbitNodes.every(
-    (n) => Math.abs(Math.hypot(n.x - after.player.x, n.y - after.player.y) - 118) < 2,
+    (n) =>
+      Math.abs(Math.hypot(n.x - after.player.x, n.y - after.player.y) - ringRadius) <
+      2,
   );
   if (!stillOnRing) {
     problems.push('orbit nodes stopped tracking the player');
@@ -431,6 +454,76 @@ async function clearDraft() {
     );
   }
   await page.screenshot({ path: path.join(BUILD, 'orbit.png') });
+}
+
+// A run must actually end, and redeploying must give a clean board.
+{
+  // Stand still in the late-game swarm until integrity runs out.
+  await page.mouse.move(640, 360, { steps: 4 });
+  let state = await page.evaluate(() => rogueAgent.state());
+  for (let i = 0; i < 40 && !state.over; i++) {
+    await settle(700);
+    await clearDraft();
+    state = await page.evaluate(() => rogueAgent.state());
+  }
+
+  if (!state.over) {
+    problems.push(`the run never ended (integrity ${state.integrity})`);
+  } else {
+    console.log(
+      `✓ run ended at ${state.elapsed.toFixed(0)}s with ${state.kills} kills, tier ${state.level}`,
+    );
+    await settle(1200);
+    await page.screenshot({ path: path.join(BUILD, 'gameover.png') });
+
+    // Frozen until the player acts.
+    const a = await page.evaluate(() => rogueAgent.state());
+    await settle(900);
+    const b = await page.evaluate(() => rogueAgent.state());
+    if (b.elapsed !== a.elapsed || b.agents.length !== a.agents.length) {
+      problems.push('the arena kept running after the run ended');
+    } else {
+      console.log('✓ the arena is frozen on the end screen');
+    }
+
+    await page.keyboard.press('r');
+    await settle(800);
+    const fresh = await page.evaluate(() => rogueAgent.state());
+    const clean =
+      !fresh.over &&
+      fresh.kills === 0 &&
+      fresh.level === 1 &&
+      fresh.integrity === 100 &&
+      fresh.agents.length === 0 &&
+      fresh.tokens.length === 0 &&
+      fresh.orbitNodes.length === 0 &&
+      fresh.weapons.length === 1;
+    if (!clean) {
+      problems.push(
+        `redeploy left state behind: ${JSON.stringify({
+          over: fresh.over,
+          kills: fresh.kills,
+          level: fresh.level,
+          integrity: fresh.integrity,
+          agents: fresh.agents.length,
+          weapons: fresh.weapons,
+        })}`,
+      );
+    } else {
+      console.log('✓ R redeploys into a clean run');
+    }
+
+    // And the fresh run actually runs.
+    await settle(2500);
+    const running = await page.evaluate(() => rogueAgent.state());
+    if (running.elapsed < 1 || running.agents.length === 0) {
+      problems.push('the redeployed run is not spawning');
+    } else {
+      console.log(
+        `✓ the new run is live (${running.elapsed.toFixed(1)}s, ${running.agents.length} agents)`,
+      );
+    }
+  }
 }
 
 await settle(500);

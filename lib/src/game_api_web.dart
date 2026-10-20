@@ -21,6 +21,7 @@ extension type _RogueAgentApi._(JSObject _) implements JSObject {
     JSFunction step,
     JSFunction setClock,
     JSFunction equip,
+    JSFunction setIntegrity,
   });
 }
 
@@ -89,6 +90,8 @@ void installGameApi(RogueAgentsGame game) {
                       .toList()
                 : <Object>[],
             'weapons': game.weapons.map((w) => w.spec.id).toList(),
+            'over': game.isOver,
+            'canRedeploy': game.gameOverOverlay.isArmed,
             'tokensCollected': game.tokensCollected,
             'integrity': game.integrity,
             'kills': game.kills,
@@ -125,6 +128,15 @@ void installGameApi(RogueAgentsGame game) {
       // Dev-only: hand the player a weapon without waiting for the draft.
       equip: ((String id) {
         if (isReady()) game.equip(weaponSpec(id));
+      }).toJS,
+      // Dev-only: top integrity back up, so a harness can keep testing late
+      // waves without the run ending underneath it.
+      setIntegrity: ((double value) {
+        if (!isReady()) return;
+        game.integrity = value.clamp(0.0, game.maxIntegrity);
+        // Reviving mid-test: a finished run stays frozen forever otherwise,
+        // and the harness would silently measure a stopped game.
+        if (game.integrity > 0 && game.isOver) game.reviveForTesting();
       }).toJS,
     ),
   );

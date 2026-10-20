@@ -35,6 +35,9 @@ class Player extends PositionComponent with HasGameReference<RogueAgentsGame> {
 
   void startMercyWindow() => _mercy = GameConfig.playerInvulnerability;
 
+  /// Used by a restart, so a fresh run never opens mid-blink.
+  void clearMercyWindow() => _mercy = 0;
+
   SpriteAnimation? _animation;
   SpriteAnimationTicker? _ticker;
   final _spritePaint = pixelPaint();

@@ -61,6 +61,10 @@ class GameConfig {
   /// Drawn size of an incoming adversarial payload.
   static const injectionSize = 22.0;
 
+  /// Beat before the game-over screen accepts input, so the click or key that
+  /// happened to land as you died does not skip past it.
+  static const gameOverArmingDelay = 0.9;
+
   /// How long a wave-change banner stays on screen.
   static const waveBannerDuration = 3.2;
 

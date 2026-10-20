@@ -16,6 +16,10 @@ import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/arena.dart';
 import 'package:flutter_game/game/combat.dart';
 import 'package:flutter_game/game/draft_overlay.dart';
+import 'package:flutter_game/game/game_over_overlay.dart';
+import 'package:flutter_game/game/injection.dart';
+import 'package:flutter_game/game/orbit_node.dart';
+import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/hud.dart';
 import 'package:flutter_game/game/input_controller.dart';
 import 'package:flutter_game/game/player.dart';
@@ -38,8 +42,10 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   late final Arena arena;
   late final Player player;
   late final InputController input;
-  late final Spawner spawner;
+  /// Replaced wholesale on restart, so not final.
+  late Spawner spawner;
   late final DraftOverlay draftOverlay;
+  late final GameOverOverlay gameOverOverlay;
 
   final music = AdaptiveMusic();
   bool _musicInBackground = false;
@@ -127,6 +133,12 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// True while the draft screen is up and the simulation is frozen.
   bool get isDrafting => offered.isNotEmpty;
 
+  /// True once integrity has run out. The run is over until [restart].
+  bool isOver = false;
+
+  /// Anything that stops the arena advancing.
+  bool get isFrozen => isDrafting || isOver;
+
   final _random = Random();
 
   /// XP required to go from [level] to the next one. Grows geometrically so
@@ -157,23 +169,30 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     spawner = Spawner();
 
     draftOverlay = DraftOverlay();
+    gameOverOverlay = GameOverOverlay();
 
     await world.addAll([arena, input, player, spawner, Combat()]);
-    await camera.viewport.addAll([Hud(), draftOverlay]);
+    await camera.viewport.addAll([Hud(), draftOverlay, gameOverOverlay]);
     await equip(weaponSpec('packet_cannon'));
   }
 
   /// Freezes the arena while the draft is up by handing every component a dt
   /// of zero. Lifecycle, input and rendering carry on, so the cards are live
   /// while agents, packets and cooldowns are all stopped dead.
+  ///
+  /// The game-over screen is exempt: it needs its own clock to arm its input,
+  /// so it is ticked directly with the real dt.
   @override
-  void updateTree(double dt) => super.updateTree(isDrafting ? 0 : dt);
+  void updateTree(double dt) {
+    super.updateTree(isFrozen ? 0 : dt);
+    if (isOver) gameOverOverlay.update(dt);
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
     _syncMusicPause();
-    if (isDrafting) return;
+    if (isFrozen) return;
     elapsed += dt;
     if (regenPerSecond > 0) repairPlayer(regenPerSecond * dt);
     if (waveBannerTimer > 0) {
@@ -191,11 +210,98 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
 
   /// Contact damage from an agent standing on the control plane.
   void damagePlayer(double amount) {
-    if (amount <= 0) return;
+    if (amount <= 0 || isOver) return;
     final applied =
         (amount * damageTakenMultiplier).clamp(0.0, integrity);
     integrity -= applied;
     integrityLost += applied;
+
+    if (integrity <= 0) endRun();
+  }
+
+  /// The control plane is gone: freeze everything and show the result.
+  void endRun() {
+    if (isOver) return;
+    isOver = true;
+    integrity = 0;
+
+    // A draft left open would fight the game-over screen for the same input.
+    offered.clear();
+    pendingLevelUps = 0;
+    draftOverlay.hide();
+
+    gameOverOverlay.show();
+  }
+
+  /// Resumes a finished run without resetting it. Only the dev bridge calls
+  /// this: the game itself has no revive.
+  void reviveForTesting() {
+    if (!isOver) return;
+    isOver = false;
+    gameOverOverlay.hide();
+  }
+
+  /// Tears the run down and starts a fresh one in place.
+  ///
+  /// Everything that a run accumulates is either a field reset here or a
+  /// component removed here; the arena, input and camera survive untouched.
+  Future<void> restart() async {
+    gameOverOverlay.hide();
+    draftOverlay.hide();
+
+    for (final component in world.children.toList()) {
+      if (component is Agent ||
+          component is Projectile ||
+          component is Injection ||
+          component is Token ||
+          component is OrbitNode ||
+          component is Weapon ||
+          component is Spawner) {
+        component.removeFromParent();
+      }
+    }
+    weapons.clear();
+    upgradesTaken.clear();
+    offered.clear();
+    pendingLevelUps = 0;
+
+    integrity = GameConfig.maxIntegrity;
+    maxIntegrity = GameConfig.maxIntegrity;
+    integrityLost = 0;
+    kills = 0;
+    elapsed = 0;
+    level = 1;
+    xp = 0;
+    tokensCollected = 0;
+
+    magnetRadius = GameConfig.magnetRadius;
+    playerSpeedMultiplier = 1;
+    weaponCooldownMultiplier = 1;
+    weaponDamageMultiplier = 1;
+    weaponExtraProjectiles = 0;
+    weaponExtraPierce = 0;
+    weaponRangeMultiplier = 1;
+    projectileSpeedMultiplier = 1;
+    critChance = 0;
+    critMultiplier = 2;
+    regenPerSecond = 0;
+    damageTakenMultiplier = 1;
+    tokenValueMultiplier = 1;
+
+    waveBanner = null;
+    waveBannerTimer = 0;
+
+    player
+      ..position = GameConfig.designSize / 2
+      ..velocity.setZero()
+      ..clearMercyWindow();
+
+    // A fresh spawner restarts the grace period and the wave tracking.
+    spawner = Spawner();
+    await world.add(spawner);
+    await equip(weaponSpec('packet_cannon'));
+
+    isOver = false;
   }
 
   /// Called by an agent as it dies.
@@ -303,6 +409,15 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     Set<LogicalKeyboardKey> keysPressed,
   ) {
     if (event is KeyDownEvent) {
+      // R redeploys once the end-of-run screen has armed.
+      if (isOver) {
+        if (event.logicalKey == LogicalKeyboardKey.keyR &&
+            gameOverOverlay.isArmed) {
+          unawaited(restart());
+        }
+        return KeyEventResult.handled;
+      }
+
       // 1-3 pick a card while the draft is up.
       final picks = {
         LogicalKeyboardKey.digit1: 0,
