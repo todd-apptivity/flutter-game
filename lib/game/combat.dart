@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flutter_game/game/agent.dart';
+import 'package:flutter_game/game/injection.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 
@@ -12,11 +13,35 @@ import 'package:flutter_game/game/rogue_agents_game.dart';
 class Combat extends Component with HasGameReference<RogueAgentsGame> {
   @override
   void update(double dt) {
+    _resolveInjections();
+
     final agents = game.world.children.whereType<Agent>().toList();
     if (agents.isEmpty) return;
 
     _resolveProjectiles(agents);
     _resolveContact(agents, dt);
+  }
+
+  /// Incoming payloads from ranged agents. They pay the same mercy window as
+  /// contact damage, so being shot while mobbed is not instant death.
+  void _resolveInjections() {
+    final player = game.player;
+    for (final shot in game.world.children.whereType<Injection>().toList()) {
+      if (shot.isRemoving) continue;
+      if (!_overlap(
+        shot.position,
+        shot.hitRadius,
+        player.position,
+        player.hitRadius,
+      )) {
+        continue;
+      }
+
+      shot.removeFromParent();
+      if (!player.canBeHit) continue;
+      game.damagePlayer(shot.damage);
+      player.startMercyWindow();
+    }
   }
 
   void _resolveProjectiles(List<Agent> agents) {

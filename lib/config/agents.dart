@@ -4,10 +4,16 @@ import 'package:flame/components.dart';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/palette.dart';
 
-/// How an agent decides where to go. Stage 9 adds the rest.
+/// How an agent decides where to go.
 enum AgentBehavior {
   /// Walks straight at the control plane.
   chase,
+
+  /// Chases, but weaves as it goes — reads as a cloud rather than a line.
+  swarm,
+
+  /// Closes to [AgentSpec.preferredRange] and lobs injections from there.
+  ranged,
 }
 
 /// Everything that makes one kind of rogue agent different from another.
@@ -28,6 +34,11 @@ class AgentSpec {
     this.spritePath,
     this.spriteFrames = 2,
     this.spriteStepTime = 0.18,
+    this.groupSize = 1,
+    this.preferredRange = 0,
+    this.attackCooldown = 2,
+    this.projectileSpeed = 200,
+    this.projectileDamage = 0,
   });
 
   /// Stable key, also used in logs and the HUD.
@@ -62,6 +73,22 @@ class AgentSpec {
   final int spriteFrames;
   final double spriteStepTime;
 
+  /// How many spawn together. Swarms arrive as a pack from one edge.
+  final int groupSize;
+
+  /// Ranged agents hold this far from the control plane.
+  final double preferredRange;
+
+  /// Seconds between ranged attacks.
+  final double attackCooldown;
+
+  /// Speed and damage of this agent's own projectile.
+  final double projectileSpeed;
+  final double projectileDamage;
+
+  bool get isRanged =>
+      behavior == AgentBehavior.ranged && projectileDamage > 0;
+
   /// On-screen size in world units.
   Vector2 get renderSize =>
       Vector2.all(frameSize * GameConfig.pixelScale);
@@ -79,6 +106,48 @@ const agentCatalog = <AgentSpec>[
     xp: 1,
     frameSize: 24,
     spritePath: 'agent_scraper.png',
+  ),
+  AgentSpec(
+    id: 'swarmlet',
+    name: 'Swarm-let',
+    blurb: 'A forked sub-agent. Cheap, disposable, never alone.',
+    hp: 5,
+    speed: 142,
+    damage: 5,
+    xp: 1,
+    frameSize: 12,
+    behavior: AgentBehavior.swarm,
+    groupSize: 5,
+    spritePath: 'agent_swarmlet.png',
+    spriteStepTime: 0.09,
+  ),
+  AgentSpec(
+    id: 'crawler',
+    name: 'Crawler',
+    blurb: 'Indexes your whole surface area. Slow, armoured, relentless.',
+    hp: 70,
+    speed: 48,
+    damage: 18,
+    xp: 5,
+    frameSize: 40,
+    spritePath: 'agent_crawler.png',
+    spriteStepTime: 0.3,
+  ),
+  AgentSpec(
+    id: 'injector',
+    name: 'Prompt Injector',
+    blurb: 'Stands off and lobs adversarial payloads at your context.',
+    hp: 26,
+    speed: 74,
+    damage: 10,
+    xp: 4,
+    frameSize: 28,
+    behavior: AgentBehavior.ranged,
+    preferredRange: 300,
+    attackCooldown: 2.1,
+    projectileSpeed: 260,
+    projectileDamage: 9,
+    spritePath: 'agent_injector.png',
   ),
 ];
 

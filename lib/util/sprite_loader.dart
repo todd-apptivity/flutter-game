@@ -17,11 +17,29 @@ Paint pixelPaint() => Paint()..filterQuality = FilterQuality.none;
 /// that cache stores the *failed* future and rethrows it to every later
 /// listener as an unhandled error. Decoded images are still handed to the cache
 /// so a second request for the same file is free.
-Future<ui.Image?> tryLoadImage(String path) async {
-  if (Flame.images.containsKey(path)) return Flame.images.fromCache(path);
+Future<ui.Image?> tryLoadImage(String path) {
+  if (Flame.images.containsKey(path)) {
+    return Future.value(Flame.images.fromCache(path));
+  }
+  // Concurrent requests for the same file must share one decode. Flame's
+  // `Images.add` DISPOSES whatever was already under the key, so letting a
+  // group of agents each decode and add their own copy kills the image the
+  // others are still rendering, and the canvas throws mid-frame.
+  return _inFlight[path] ??= _decode(path).whenComplete(() {
+    _inFlight.remove(path);
+  });
+}
+
+final _inFlight = <String, Future<ui.Image?>>{};
+
+Future<ui.Image?> _decode(String path) async {
   try {
     final data = await rootBundle.load('assets/images/$path');
     final image = await decodeImageFromList(data.buffer.asUint8List());
+    if (Flame.images.containsKey(path)) {
+      image.dispose();
+      return Flame.images.fromCache(path);
+    }
     Flame.images.add(path, image);
     return image;
   } catch (e) {

@@ -58,6 +58,12 @@ class GameConfig {
   /// Player collision radius as a fraction of its drawn size.
   static const playerHitFraction = 0.34;
 
+  /// Drawn size of an incoming adversarial payload.
+  static const injectionSize = 22.0;
+
+  /// How long a wave-change banner stays on screen.
+  static const waveBannerDuration = 3.2;
+
   /// Token art frame size in source pixels.
   static const tokenFrameSize = 12.0;
 

@@ -3,13 +3,12 @@ import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flutter_game/config/agents.dart';
 import 'package:flutter_game/config/game_config.dart';
+import 'package:flutter_game/config/waves.dart';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 
-/// Pushes rogue agents in from the edges of the arena.
-///
-/// Stage 9 replaces the fixed interval and single type with a wave table; the
-/// spawn-position maths stays the same.
+/// Pushes rogue agents in from the edges of the arena, following the wave
+/// table in lib/config/waves.dart.
 class Spawner extends Component with HasGameReference<RogueAgentsGame> {
   Spawner({Random? random}) : _random = random ?? Random();
 
@@ -17,25 +16,71 @@ class Spawner extends Component with HasGameReference<RogueAgentsGame> {
 
   double _cooldown = GameConfig.firstSpawnDelay;
 
-  /// Seconds between spawns right now.
-  double get interval => GameConfig.spawnInterval;
+  /// The wave that was live last frame, so a change can be announced.
+  WaveSpec? _lastWave;
 
-  /// Live agents, used for the cap and later for the HUD.
+  /// The wave in force right now.
+  WaveSpec get wave => waveAt(game.elapsed);
+
+  /// Seconds between spawn events right now.
+  double get interval => wave.interval;
+
+  /// Live agents, used for the cap and the HUD.
   int get agentCount => game.world.children.whereType<Agent>().length;
 
   @override
   void update(double dt) {
+    final current = wave;
+    if (_lastWave != null && !identical(current, _lastWave)) {
+      game.onWaveChanged(current);
+    }
+    _lastWave = current;
+
     _cooldown -= dt;
     if (_cooldown > 0) return;
     _cooldown = interval;
 
     if (agentCount >= GameConfig.maxAgents) return;
-    spawn(agentCatalog.first);
+    spawnFromWave(current);
+  }
+
+  /// Rolls one agent type from [wave] and spawns its whole group.
+  List<Agent> spawnFromWave(WaveSpec wave) {
+    final spec = agentSpec(_rollType(wave));
+    final anchor = randomEdgePosition(spec);
+
+    // A group arrives together, scattered a little so they do not overlap
+    // perfectly and read as one sprite.
+    return [
+      for (var i = 0; i < spec.groupSize; i++)
+        spawnAt(
+          spec,
+          spec.groupSize == 1
+              ? anchor
+              : anchor +
+                  Vector2(
+                    (_random.nextDouble() - 0.5) * spec.renderSize.x * 4,
+                    (_random.nextDouble() - 0.5) * spec.renderSize.y * 4,
+                  ),
+        ),
+    ];
+  }
+
+  String _rollType(WaveSpec wave) {
+    final total = wave.weights.values.fold<int>(0, (sum, w) => sum + w);
+    var roll = _random.nextInt(total);
+    for (final entry in wave.weights.entries) {
+      roll -= entry.value;
+      if (roll < 0) return entry.key;
+    }
+    return wave.weights.keys.last;
   }
 
   /// Adds one [spec] just outside a random edge of the arena.
-  Agent spawn(AgentSpec spec) {
-    final agent = Agent(spec: spec, position: randomEdgePosition(spec));
+  Agent spawn(AgentSpec spec) => spawnAt(spec, randomEdgePosition(spec));
+
+  Agent spawnAt(AgentSpec spec, Vector2 position) {
+    final agent = Agent(spec: spec, position: position);
     game.world.add(agent);
     return agent;
   }

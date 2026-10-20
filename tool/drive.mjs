@@ -325,6 +325,48 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
   }
 }
 
+// Later waves must introduce the other agent types and the ranged attack.
+{
+  await page.evaluate(() => rogueAgent.setClock(95));
+  await settle(1200);
+  const banner = await page.evaluate(() => rogueAgent.state());
+  if (!banner.waveBanner) {
+    problems.push('crossing into a later wave raised no banner');
+  } else {
+    console.log(`✓ wave banner: "${banner.waveBanner}"`);
+  }
+  await page.screenshot({ path: path.join(BUILD, 'waves.png') });
+
+  // Keep moving so the run survives long enough to see the mix.
+  const seen = new Set();
+  let injections = 0;
+  for (let i = 0; i < 24; i++) {
+    await page.mouse.move(
+      420 + ((i * 131) % 440),
+      240 + ((i * 71) % 240),
+      { steps: 5 },
+    );
+    await page.evaluate(() => rogueAgent.setClock(150));
+    await settle(600);
+    const s = await page.evaluate(() => rogueAgent.state());
+    s.agents.forEach((a) => seen.add(a.id));
+    injections = Math.max(injections, s.injections.length);
+  }
+
+  const expected = ['scraper', 'swarmlet', 'crawler', 'injector'];
+  const missing = expected.filter((id) => !seen.has(id));
+  if (missing.length) {
+    problems.push(`agent types never seen in late waves: ${missing.join(', ')}`);
+  } else {
+    console.log(`✓ all four agent types spawn (${[...seen].join(', ')})`);
+  }
+  if (injections === 0) {
+    problems.push('Prompt Injectors never fired a payload');
+  } else {
+    console.log(`✓ injectors fire payloads (${injections} in flight at peak)`);
+  }
+}
+
 await settle(500);
 const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });

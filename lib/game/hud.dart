@@ -53,6 +53,28 @@ class Hud extends PositionComponent with HasGameReference<RogueAgentsGame> {
     _renderClock(canvas);
     _renderKills(canvas);
     _renderExperience(canvas);
+    _renderWaveBanner(canvas);
+  }
+
+  /// Announces a new wave, fading out over its last second.
+  void _renderWaveBanner(Canvas canvas) {
+    final text = game.waveBanner;
+    if (text == null) return;
+
+    final fade = game.waveBannerTimer.clamp(0.0, 1.0);
+    TextPaint(
+      style: TextStyle(
+        color: Palette.agentEye.withValues(alpha: fade),
+        fontSize: 30,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 4,
+      ),
+    ).render(
+      canvas,
+      '// $text',
+      Vector2(GameConfig.designWidth / 2, 112),
+      anchor: Anchor.topCenter,
+    );
   }
 
   /// Full-width capacity bar along the bottom, with the current tier.

@@ -10,6 +10,7 @@ import 'package:flutter_game/audio/adaptive_music.dart';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/palette.dart';
 import 'package:flutter_game/config/upgrades.dart';
+import 'package:flutter_game/config/waves.dart';
 import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/arena.dart';
@@ -104,6 +105,16 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// Rolls a crit for one packet.
   bool rollCrit() => critChance > 0 && _random.nextDouble() < critChance;
 
+  /// Banner text for the wave that just started, and how long it stays up.
+  String? waveBanner;
+  double waveBannerTimer = 0;
+
+  /// Called by the spawner when the wave table moves on.
+  void onWaveChanged(WaveSpec wave) {
+    waveBanner = wave.label;
+    waveBannerTimer = GameConfig.waveBannerDuration;
+  }
+
   /// How many times each upgrade has been taken.
   final upgradesTaken = <String, int>{};
 
@@ -165,6 +176,10 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     if (isDrafting) return;
     elapsed += dt;
     if (regenPerSecond > 0) repairPlayer(regenPerSecond * dt);
+    if (waveBannerTimer > 0) {
+      waveBannerTimer -= dt;
+      if (waveBannerTimer <= 0) waveBanner = null;
+    }
     music.updateDanger(
       healthFraction: integrity / maxIntegrity,
       enemies: world.children

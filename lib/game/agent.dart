@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flame/sprite.dart';
 import 'package:flutter_game/config/agents.dart';
 import 'package:flutter_game/config/game_config.dart';
+import 'package:flutter_game/game/injection.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_game/util/sprite_loader.dart';
 
@@ -46,8 +47,16 @@ class Agent extends PositionComponent with HasGameReference<RogueAgentsGame> {
   SpriteAnimationTicker? _ticker;
   final _spritePaint = pixelPaint();
 
-  /// Drives the placeholder's leg shuffle.
+  /// Drives the placeholder's leg shuffle and the swarm weave.
   double _t = 0;
+
+  /// Per-agent weave offset, so a pack does not move in lockstep.
+  final double _weavePhase = math.Random().nextDouble() * math.pi * 2;
+
+  /// Seconds until this agent may attack again. Staggered on spawn so a group
+  /// of injectors does not volley in unison.
+  late double _attackCooldown =
+      spec.attackCooldown * (0.3 + math.Random().nextDouble() * 0.7);
 
   late final _bodyPaint = Paint()..color = spec.color;
   late final _trimPaint = Paint()
@@ -80,6 +89,10 @@ class Agent extends PositionComponent with HasGameReference<RogueAgentsGame> {
     switch (spec.behavior) {
       case AgentBehavior.chase:
         _chase(dt);
+      case AgentBehavior.swarm:
+        _swarm(dt);
+      case AgentBehavior.ranged:
+        _standOff(dt);
     }
   }
 
@@ -87,6 +100,51 @@ class Agent extends PositionComponent with HasGameReference<RogueAgentsGame> {
     final delta = game.player.position - position;
     if (delta.length2 == 0) return;
     position += delta.normalized() * spec.speed * dt;
+  }
+
+  /// Chase with a sideways weave, so a pack spreads into a cloud instead of
+  /// stacking into a single sprite.
+  void _swarm(double dt) {
+    final delta = game.player.position - position;
+    if (delta.length2 == 0) return;
+
+    final forward = delta.normalized();
+    final sideways = Vector2(-forward.y, forward.x) *
+        math.sin(_t * 6 + _weavePhase) *
+        0.55;
+    position += (forward + sideways).normalized() * spec.speed * dt;
+  }
+
+  /// Close to [AgentSpec.preferredRange], hold there, and fire on a cooldown.
+  void _standOff(double dt) {
+    final delta = game.player.position - position;
+    final distance = delta.length;
+    if (distance == 0) return;
+
+    final direction = delta.normalized();
+    // Inside a dead band it holds position, so it does not jitter in and out.
+    if (distance > spec.preferredRange * 1.1) {
+      position += direction * spec.speed * dt;
+    } else if (distance < spec.preferredRange * 0.8) {
+      position -= direction * spec.speed * 0.8 * dt;
+    }
+
+    _attackCooldown -= dt;
+    if (_attackCooldown <= 0 && spec.isRanged) {
+      _attackCooldown = spec.attackCooldown;
+      fire(direction);
+    }
+  }
+
+  /// Lobs one payload along [direction]. Public so tests can trigger it.
+  void fire(Vector2 direction) {
+    game.world.add(
+      Injection(
+        spec: spec,
+        position: position.clone(),
+        direction: direction.normalized(),
+      ),
+    );
   }
 
   @override

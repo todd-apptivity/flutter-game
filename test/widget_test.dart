@@ -5,7 +5,9 @@ import 'package:flutter_game/config/agents.dart';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/upgrades.dart';
 import 'package:flutter_game/config/weapons.dart';
+import 'package:flutter_game/config/waves.dart';
 import 'package:flutter_game/game/agent.dart';
+import 'package:flutter_game/game/injection.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_game/game/token.dart';
@@ -114,11 +116,12 @@ void main() {
       await game.ready();
       expect(game.world.children.whereType<Agent>(), isEmpty);
 
-      // The grace period, then one interval: exactly two spawns are due.
+      // The grace period, then one interval: exactly two spawn events are due.
       game.update(GameConfig.firstSpawnDelay + 0.01);
-      game.update(GameConfig.spawnInterval + 0.01);
+      game.update(waveTable.first.interval + 0.01);
       await game.ready();
 
+      // Wave one is Scrapers only, which spawn one at a time.
       final agents = game.world.children.whereType<Agent>().toList();
       expect(agents, hasLength(2));
       for (final agent in agents) {
@@ -658,6 +661,117 @@ void main() {
       await game.ready();
       final shot = game.world.children.whereType<Projectile>().last;
       expect(shot.speed, closeTo(baseSpeed * 1.3, 0.001));
+    },
+  );
+
+  test('the wave table escalates and every id it names exists', () {
+    expect(waveAt(0).weights.keys, ['scraper']);
+    expect(waveAt(1000), waveTable.last);
+
+    for (var i = 1; i < waveTable.length; i++) {
+      final previous = waveTable[i - 1];
+      final wave = waveTable[i];
+      expect(wave.from, greaterThan(previous.from));
+      expect(wave.interval, lessThan(previous.interval));
+      for (final id in wave.weights.keys) {
+        expect(() => agentSpec(id), returnsNormally);
+      }
+    }
+  });
+
+  testWithGame<RogueAgentsGame>(
+    'a swarm wave spawns a whole group at once',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final swarm = agentSpec('swarmlet');
+      expect(swarm.groupSize, greaterThan(1));
+
+      final spawned = game.spawner.spawnFromWave(
+        const WaveSpec(
+          from: 0,
+          interval: 1,
+          weights: {'swarmlet': 1},
+          label: 'TEST',
+        ),
+      );
+      await game.ready();
+
+      expect(spawned, hasLength(swarm.groupSize));
+      // Scattered, not stacked on one point.
+      expect(
+        spawned.map((a) => a.position.x).toSet(),
+        hasLength(swarm.groupSize),
+      );
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a ranged agent holds its distance and fires',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final spec = agentSpec('injector');
+
+      // Starts well outside its preferred range.
+      final agent = Agent(
+        spec: spec,
+        position: game.player.position + Vector2(spec.preferredRange + 240, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      await tick(game, 60 * 5);
+
+      // Closed to roughly its stand-off distance, not onto the player.
+      final distance = agent.position.distanceTo(game.player.position);
+      expect(distance, greaterThan(spec.preferredRange * 0.7));
+      expect(distance, lessThan(spec.preferredRange * 1.25));
+
+      // And it has been shooting.
+      expect(game.world.children.whereType<Injection>(), isNotEmpty);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'an injection that lands damages the player and is consumed',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final spec = agentSpec('injector');
+
+      await game.world.add(
+        Injection(
+          spec: spec,
+          position: game.player.position + Vector2(40, 0),
+          direction: Vector2(-1, 0),
+        ),
+      );
+      await game.ready();
+
+      await tick(game, 30);
+
+      expect(game.world.children.whereType<Injection>(), isEmpty);
+      expect(
+        game.integrity,
+        closeTo(GameConfig.maxIntegrity - spec.projectileDamage, 0.001),
+      );
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'crossing a wave boundary raises a banner',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.waveBanner, isNull);
+
+      // Jump the clock past the second wave's start.
+      game.elapsed = waveTable[1].from + 0.1;
+      await tick(game, 2);
+
+      expect(game.waveBanner, waveTable[1].label);
+      expect(game.waveBannerTimer, greaterThan(0));
     },
   );
 }
