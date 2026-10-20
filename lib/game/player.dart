@@ -21,6 +21,20 @@ class Player extends PositionComponent with HasGameReference<RogueAgentsGame> {
   /// starts and stops have a little weight.
   final velocity = Vector2.zero();
 
+  /// Collision radius. Deliberately smaller than the art: a near miss should
+  /// feel like a near miss.
+  double get hitRadius => size.x * GameConfig.playerHitFraction;
+
+  /// Seconds of post-hit immunity left.
+  double _mercy = 0;
+
+  bool get canBeHit => _mercy <= 0;
+
+  /// True while the core should blink after being hit.
+  bool get isHurt => _mercy > 0;
+
+  void startMercyWindow() => _mercy = GameConfig.playerInvulnerability;
+
   SpriteAnimation? _animation;
   SpriteAnimationTicker? _ticker;
   final _spritePaint = pixelPaint();
@@ -49,6 +63,7 @@ class Player extends PositionComponent with HasGameReference<RogueAgentsGame> {
   @override
   void update(double dt) {
     _t += dt;
+    _mercy = (_mercy - dt).clamp(0, GameConfig.playerInvulnerability);
     _ticker?.update(dt);
     _move(dt);
   }
@@ -79,6 +94,9 @@ class Player extends PositionComponent with HasGameReference<RogueAgentsGame> {
 
   @override
   void render(Canvas canvas) {
+    // Blink through the mercy window so a hit is unmistakable.
+    if (isHurt && (_mercy * 20).floor().isEven) return;
+
     final frame = _ticker?.getSprite();
     if (frame != null) {
       frame.render(canvas, size: size, overridePaint: _spritePaint);

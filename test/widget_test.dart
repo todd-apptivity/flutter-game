@@ -8,6 +8,19 @@ import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Advances [frames] frames, letting the component tree settle between them.
+///
+/// A bare loop of `game.update()` never yields to the event loop, so any
+/// component with an async `onLoad` (everything that tries for a sprite) stays
+/// queued and blocks its parent's add/remove events. Awaiting `ready()` each
+/// frame is what a real browser frame does for free.
+Future<void> tick(RogueAgentsGame game, int frames, {double dt = 1 / 60}) async {
+  for (var i = 0; i < frames; i++) {
+    game.update(dt);
+    await game.ready();
+  }
+}
+
 void main() {
   // Needed so the asset bundle exists: the loaders expect a missing-file
   // failure, not a missing-binding failure.
@@ -195,6 +208,99 @@ void main() {
       await game.ready();
 
       expect(game.world.children.whereType<Projectile>(), isEmpty);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'packets damage an agent and kill it at zero hp',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final spec = agentSpec('scraper');
+
+      final agent = Agent(
+        spec: spec,
+        position: game.player.position + Vector2(80, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      // Damage is exact, and a survivable hit does not count as a kill.
+      agent.takeDamage(spec.hp - 1);
+      expect(agent.hp, closeTo(1, 0.001));
+      expect(game.kills, 0);
+
+      // The cannon finishes it off on its own.
+      await tick(game, 120);
+
+      expect(agent.isMounted, isFalse);
+      expect(game.kills, greaterThanOrEqualTo(1));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a packet is spent on the agent it hits',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      final agent = Agent(
+        spec: agentSpec('scraper'),
+        position: game.player.position + Vector2(80, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      game.weapons.single.fireAt(agent.position);
+      await game.ready();
+      final shot = game.world.children.whereType<Projectile>().last;
+
+      // It reaches the agent, deals its damage, and is consumed — pierce is 0.
+      await tick(game, 10);
+
+      expect(shot.isMounted, isFalse);
+      expect(agent.hp, lessThan(agentSpec('scraper').hp));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'standing in an agent drains integrity',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.integrity, GameConfig.maxIntegrity);
+
+      await game.world.add(
+        Agent(spec: agentSpec('scraper'), position: game.player.position.clone()),
+      );
+      await game.ready();
+
+      final hit = agentSpec('scraper').damage;
+
+      // One frame of contact: a single discrete hit, not per-frame damage.
+      await tick(game, 1);
+      expect(game.integrity, closeTo(GameConfig.maxIntegrity - hit, 0.001));
+
+      // Still touching, but inside the mercy window: no further damage.
+      await tick(game, 10);
+      expect(game.integrity, closeTo(GameConfig.maxIntegrity - hit, 0.001));
+
+      // Once the window lapses, the next hit lands.
+      await tick(game, (GameConfig.playerInvulnerability * 60).ceil() + 2);
+      expect(game.integrity, closeTo(GameConfig.maxIntegrity - hit * 2, 0.001));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'integrity never goes below zero',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.damagePlayer(10_000);
+
+      expect(game.integrity, 0);
+      expect(game.integrityLost, GameConfig.maxIntegrity);
     },
   );
 }

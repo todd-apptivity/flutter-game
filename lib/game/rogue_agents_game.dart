@@ -5,12 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/palette.dart';
+import 'package:flutter_game/config/weapons.dart';
+import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/arena.dart';
+import 'package:flutter_game/game/combat.dart';
+import 'package:flutter_game/game/hud.dart';
 import 'package:flutter_game/game/input_controller.dart';
 import 'package:flutter_game/game/player.dart';
 import 'package:flutter_game/game/spawner.dart';
 import 'package:flutter_game/game/weapon.dart';
-import 'package:flutter_game/config/weapons.dart';
 
 /// Rogue Agents: you are the control plane. Everything else wants in.
 class RogueAgentsGame extends FlameGame with KeyboardEvents {
@@ -32,6 +35,18 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// Weapons the player currently owns. Stage 7 upgrades add to this.
   final weapons = <Weapon>[];
 
+  /// Control plane health. Stage 11 ends the run when it reaches zero.
+  double integrity = GameConfig.maxIntegrity;
+
+  /// Agents destroyed this run.
+  int kills = 0;
+
+  /// Seconds since the run began.
+  double elapsed = 0;
+
+  /// Damage taken, for the eventual game-over readout.
+  double integrityLost = 0;
+
   @override
   Color backgroundColor() => Palette.background;
 
@@ -46,8 +61,28 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     player = Player()..position = GameConfig.designSize / 2;
     spawner = Spawner();
 
-    await world.addAll([arena, input, player, spawner]);
+    await world.addAll([arena, input, player, spawner, Combat()]);
+    await camera.viewport.add(Hud());
     await equip(weaponSpec('packet_cannon'));
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    elapsed += dt;
+  }
+
+  /// Contact damage from an agent standing on the control plane.
+  void damagePlayer(double amount) {
+    if (amount <= 0) return;
+    final applied = amount.clamp(0.0, integrity);
+    integrity -= applied;
+    integrityLost += applied;
+  }
+
+  /// Called by an agent as it dies.
+  void onAgentKilled(Agent agent) {
+    kills++;
   }
 
   /// Gives the player a weapon. Upgrades call this to add a second one.

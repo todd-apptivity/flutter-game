@@ -33,7 +33,7 @@ class GameConfig {
   static const pointerDeadZone = 6.0;
 
   /// Seconds between agent spawns. Stage 9's wave table takes this over.
-  static const spawnInterval = 1.1;
+  static const spawnInterval = 0.8;
 
   /// Grace period before the first agent appears, so a run does not open with
   /// something already in your face.
@@ -44,4 +44,17 @@ class GameConfig {
 
   /// Hard cap on live agents, so a long run cannot tank the frame rate.
   static const maxAgents = 120;
+
+  /// Control plane integrity at the start of a run.
+  static const maxIntegrity = 100.0;
+
+  /// Mercy window after taking a hit. Without it, standing in a crowd applies
+  /// every agent's damage every frame and a run ends in a couple of seconds.
+  static const playerInvulnerability = 0.45;
+
+  /// How long an agent flashes white after being hit.
+  static const hitFlashDuration = 0.09;
+
+  /// Player collision radius as a fraction of its drawn size.
+  static const playerHitFraction = 0.34;
 }

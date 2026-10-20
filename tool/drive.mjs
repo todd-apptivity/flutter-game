@@ -151,24 +151,40 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
     const before = state.agents.map(dist);
     await settle(1500);
     const after = await page.evaluate(() => rogueAgent.state());
-    const closed = after.agents.length >= state.agents.length;
-    const nearer = Math.min(...after.agents.map(dist)) < Math.min(...before);
-    if (!closed || !nearer) {
-      problems.push('agents are not closing on the control plane');
+    // Agents die to the defenses now, so counting them down is meaningless;
+    // what matters is that some agent has walked well inside the arena.
+    const closest = Math.min(...after.agents.map(dist));
+    if (!(closest < Math.min(...before)) && closest > 380) {
+      problems.push(`agents are not closing on the control plane (${closest.toFixed(0)}px)`);
     } else {
-      console.log(`✓ ${after.agents.length} agents spawned and closing in`);
+      console.log(
+        `✓ ${after.agents.length} agents in play, nearest ${closest.toFixed(0)}px out`,
+      );
     }
   }
 }
 
 // Once agents are close, the defenses must fire on their own.
 {
-  let fired = 0;
-  for (let i = 0; i < 20 && fired === 0; i++) {
-    await settle(250);
-    const s = await page.evaluate(() => rogueAgent.state());
-    fired = s.projectiles.length;
-  }
+  // Packets are fast and sparse, so sample inside the page rather than
+  // round-tripping: a poll every 250ms walks straight past them.
+  const fired = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        let seen = 0;
+        const id = setInterval(() => {
+          seen = Math.max(seen, rogueAgent.state().projectiles.length);
+          if (seen > 0) {
+            clearInterval(id);
+            resolve(seen);
+          }
+        }, 16);
+        setTimeout(() => {
+          clearInterval(id);
+          resolve(seen);
+        }, 8000);
+      }),
+  );
   if (fired === 0) {
     problems.push('the weapon never fired at an agent in range');
   } else {
@@ -176,7 +192,36 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
   }
 }
 
-await settle(1500);
+// Kills must register, and sitting still must cost integrity.
+{
+  let state = await page.evaluate(() => rogueAgent.state());
+  for (let i = 0; i < 24 && state.kills === 0; i++) {
+    await settle(500);
+    state = await page.evaluate(() => rogueAgent.state());
+  }
+  if (state.kills === 0) {
+    problems.push('no agents were destroyed');
+  } else {
+    console.log(`✓ kills register (${state.kills} terminated at ${state.elapsed.toFixed(1)}s)`);
+  }
+
+  // Stand still in the swarm and bleed: the spawn rate out-paces one cannon.
+  const before = state.integrity;
+  let after = state;
+  for (let i = 0; i < 12 && after.integrity >= before; i++) {
+    await settle(2500);
+    after = await page.evaluate(() => rogueAgent.state());
+  }
+  if (after.integrity >= before) {
+    problems.push(`integrity did not drop (${before} -> ${after.integrity})`);
+  } else {
+    console.log(
+      `✓ contact drains integrity (${before.toFixed(1)} -> ${after.integrity.toFixed(1)})`,
+    );
+  }
+}
+
+await settle(500);
 const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });
 console.log(`✓ screenshot written to ${shot}`);

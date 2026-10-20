@@ -53,6 +53,9 @@ void installGameApi(RogueAgentsGame game) {
                 .map((p) => {'x': p.position.x, 'y': p.position.y})
                 .toList()
             : <Object>[],
+        'integrity': game.integrity,
+        'kills': game.kills,
+        'elapsed': game.elapsed,
       }.jsify() as JSObject;
 
   _globalThis.setProperty(

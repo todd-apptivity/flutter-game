@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flame/components.dart';
 import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/weapons.dart';
+import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_game/util/sprite_loader.dart';
 
@@ -34,6 +35,16 @@ class Projectile extends PositionComponent
 
   /// Distance travelled, against [WeaponSpec.range].
   double _travelled = 0;
+
+  /// Agents already hit, so a piercing packet cannot hit the same one twice.
+  final _hits = <Agent>{};
+
+  /// Collision radius; a little generous so fast packets feel fair.
+  double get hitRadius => size.x * 0.45;
+
+  bool hasHit(Agent agent) => _hits.contains(agent);
+
+  void registerHit(Agent agent) => _hits.add(agent);
 
   Sprite? _sprite;
   final _spritePaint = pixelPaint();

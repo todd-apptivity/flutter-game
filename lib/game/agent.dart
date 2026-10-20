@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flame/components.dart';
 import 'package:flame/sprite.dart';
 import 'package:flutter_game/config/agents.dart';
+import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
 import 'package:flutter_game/util/sprite_loader.dart';
 
@@ -20,6 +21,27 @@ class Agent extends PositionComponent with HasGameReference<RogueAgentsGame> {
   final AgentSpec spec;
 
   late double hp = spec.hp;
+
+  /// Seconds of hit-flash left.
+  double _flash = 0;
+
+  /// Collision radius, slightly inside the art so corners do not clip.
+  double get hitRadius => size.x * 0.42;
+
+  /// Applies [amount] damage, flashing white and dying at zero.
+  void takeDamage(double amount) {
+    if (isRemoving) return;
+    hp -= amount;
+    _flash = GameConfig.hitFlashDuration;
+    if (hp <= 0) die();
+  }
+
+  /// Removes the agent and tells the game to count it.
+  void die() {
+    if (isRemoving) return;
+    removeFromParent();
+    game.onAgentKilled(this);
+  }
 
   SpriteAnimationTicker? _ticker;
   final _spritePaint = pixelPaint();
@@ -52,6 +74,7 @@ class Agent extends PositionComponent with HasGameReference<RogueAgentsGame> {
   @override
   void update(double dt) {
     _t += dt;
+    _flash = (_flash - dt).clamp(0, GameConfig.hitFlashDuration);
     _ticker?.update(dt);
 
     switch (spec.behavior) {
@@ -71,9 +94,24 @@ class Agent extends PositionComponent with HasGameReference<RogueAgentsGame> {
     final frame = _ticker?.getSprite();
     if (frame != null) {
       frame.render(canvas, size: size, overridePaint: _spritePaint);
-      return;
+    } else {
+      _renderPlaceholder(canvas);
     }
-    _renderPlaceholder(canvas);
+    if (_flash > 0) _renderFlash(canvas);
+  }
+
+  /// A white wash over the whole sprite, fading out — reads as a hit with or
+  /// without art present.
+  void _renderFlash(Canvas canvas) {
+    final strength = _flash / GameConfig.hitFlashDuration;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.x * 0.1, size.y * 0.12, size.x * 0.8, size.y * 0.72),
+        Radius.circular(size.x * 0.12),
+      ),
+      Paint()
+        ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.7 * strength),
+    );
   }
 
   /// Boxy chassis with one red eye that looks at the control plane.

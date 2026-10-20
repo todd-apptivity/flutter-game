@@ -43,6 +43,10 @@ class Weapon extends Component with HasGameReference<RogueAgentsGame> {
     final origin = game.player.position;
 
     for (final agent in game.world.children.whereType<Agent>()) {
+      // Only shoot at what the player can see: agents are still walking in
+      // from off-arena, and sniping them out there reads as a bug.
+      if (!game.arena.bounds.contains(agent.position.toOffset())) continue;
+
       final distance = agent.position.distanceTo(origin);
       if (distance < bestDistance) {
         best = agent;
