@@ -69,7 +69,7 @@ class TechnoScore {
           );
         }
         if (s == 0 || s == 10) {
-          // D bars use a major third; E and C use a minor/darker voicing.
+          // E minor alternates with D and C major, all in the E-minor scale.
           for (final interval in [0, root == 26 || root == 24 ? 4 : 3, 7, 14]) {
             notes.add(
               MidiNote(
