@@ -221,6 +221,47 @@ const settle = (ms = 600) => page.waitForTimeout(ms);
   }
 }
 
+// Kills must drop tokens, and collecting them must raise the tier.
+{
+  const state = await page.evaluate(() => rogueAgent.state());
+  if (state.tokensCollected === 0 && state.tokens.length === 0) {
+    problems.push('no tokens dropped or collected');
+  } else {
+    console.log(
+      `✓ tokens drop and bank (${state.tokensCollected} absorbed, ` +
+        `${state.tokens.length} on the floor, tier ${state.level}, xp ${state.xp})`,
+    );
+  }
+  if (state.tokensCollected > 0 && state.level === 1 && state.xp === 0) {
+    problems.push('collected tokens did not bank any xp');
+  }
+}
+
+// Every sprite must have loaded: the art is in the repo now, so a 404 under
+// assets/images means a path or manifest problem, not a pending asset.
+{
+  const missing = await page.evaluate(async () => {
+    const files = [
+      'player_core.png',
+      'floor_tile.png',
+      'agent_scraper.png',
+      'proj_packet.png',
+      'pickup_token.png',
+    ];
+    const bad = [];
+    for (const f of files) {
+      const r = await fetch(`assets/assets/images/${f}`);
+      if (!r.ok) bad.push(`${f} (${r.status})`);
+    }
+    return bad;
+  });
+  if (missing.length) {
+    problems.push(`art not served: ${missing.join(', ')}`);
+  } else {
+    console.log('✓ all stage-6 sprites are served');
+  }
+}
+
 await settle(500);
 const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });

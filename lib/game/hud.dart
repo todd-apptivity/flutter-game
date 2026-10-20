@@ -52,6 +52,35 @@ class Hud extends PositionComponent with HasGameReference<RogueAgentsGame> {
     _renderIntegrity(canvas);
     _renderClock(canvas);
     _renderKills(canvas);
+    _renderExperience(canvas);
+  }
+
+  /// Full-width capacity bar along the bottom, with the current tier.
+  void _renderExperience(Canvas canvas) {
+    const height = 14.0;
+    final top = GameConfig.designHeight - _pad - height;
+    final width = GameConfig.designWidth - _pad * 2;
+    final back = Rect.fromLTWH(_pad, top, width, height);
+
+    canvas
+      ..drawRect(back, _barBack)
+      ..drawRect(
+        Rect.fromLTWH(_pad, top, width * game.levelProgress, height),
+        Paint()..color = Palette.playerCore,
+      )
+      ..drawRect(back, _barEdge);
+
+    _label.render(
+      canvas,
+      'COMPUTE TOKENS  ${game.xp}/${game.xpForNextLevel}',
+      Vector2(_pad, top - 22),
+    );
+    _label.render(
+      canvas,
+      'CLEARANCE TIER ${game.level}',
+      Vector2(GameConfig.designWidth - _pad, top - 22),
+      anchor: Anchor.topRight,
+    );
   }
 
   void _renderIntegrity(Canvas canvas) {

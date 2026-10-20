@@ -47,7 +47,11 @@ class Arena extends PositionComponent {
   void render(Canvas canvas) {
     final tile = _tile;
     if (tile != null) {
-      // Tile the provided art across the floor at pixel scale.
+      // Tile the provided art across the floor at pixel scale. Clipped, or the
+      // last row and column spill past the arena border.
+      canvas
+        ..save()
+        ..clipRect(size.toRect());
       final step = tile.srcSize * GameConfig.pixelScale;
       for (var y = 0.0; y < size.y; y += step.y) {
         for (var x = 0.0; x < size.x; x += step.x) {
@@ -59,6 +63,7 @@ class Arena extends PositionComponent {
           );
         }
       }
+      canvas.restore();
     } else {
       _renderGrid(canvas);
     }

@@ -13,6 +13,7 @@ import 'package:flutter_game/game/hud.dart';
 import 'package:flutter_game/game/input_controller.dart';
 import 'package:flutter_game/game/player.dart';
 import 'package:flutter_game/game/spawner.dart';
+import 'package:flutter_game/game/token.dart';
 import 'package:flutter_game/game/weapon.dart';
 
 /// Rogue Agents: you are the control plane. Everything else wants in.
@@ -46,6 +47,29 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
 
   /// Damage taken, for the eventual game-over readout.
   double integrityLost = 0;
+
+  /// Current level, and XP banked toward the next one.
+  int level = 1;
+  int xp = 0;
+
+  /// Tokens absorbed this run.
+  int tokensCollected = 0;
+
+  /// Pickup radius, widened by upgrades in stage 7.
+  double magnetRadius = GameConfig.magnetRadius;
+
+  /// XP required to go from [level] to the next one. Grows geometrically so
+  /// early levels come fast and the pace settles later in a run.
+  int get xpForNextLevel {
+    var cost = GameConfig.baseLevelCost.toDouble();
+    for (var i = 1; i < level; i++) {
+      cost *= GameConfig.levelCostGrowth;
+    }
+    return cost.round();
+  }
+
+  /// Progress toward the next level, 0..1.
+  double get levelProgress => (xp / xpForNextLevel).clamp(0.0, 1.0);
 
   @override
   Color backgroundColor() => Palette.background;
@@ -83,6 +107,23 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// Called by an agent as it dies.
   void onAgentKilled(Agent agent) {
     kills++;
+    world.add(Token(position: agent.position.clone(), value: agent.spec.xp));
+  }
+
+  /// Called by a token as it is absorbed.
+  void collectToken(Token token) {
+    tokensCollected++;
+    xp += token.value;
+
+    while (xp >= xpForNextLevel) {
+      xp -= xpForNextLevel;
+      levelUp();
+    }
+  }
+
+  /// Stage 7 turns this into the upgrade draft; for now it just banks a level.
+  void levelUp() {
+    level++;
   }
 
   /// Gives the player a weapon. Upgrades call this to add a second one.

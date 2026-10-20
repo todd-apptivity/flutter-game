@@ -57,4 +57,17 @@ class GameConfig {
 
   /// Player collision radius as a fraction of its drawn size.
   static const playerHitFraction = 0.34;
+
+  /// Token art frame size in source pixels.
+  static const tokenFrameSize = 12.0;
+
+  /// How close a token must be before the control plane pulls it in.
+  static const magnetRadius = 110.0;
+
+  /// Base speed of an attracted token; it accelerates as it closes.
+  static const tokenPullSpeed = 180.0;
+
+  /// XP needed for level 2. Each level after costs [levelCostGrowth] more.
+  static const baseLevelCost = 5;
+  static const levelCostGrowth = 1.45;
 }

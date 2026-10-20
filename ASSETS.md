@@ -16,13 +16,13 @@ combination of present/missing assets runs.
 | Arena floor tile | `assets/images/floor_tile.png` | 32x32 | 1 | yes | 1 | ready |
 | Scraper agent | `assets/images/agent_scraper.png` | 24x24 | 2 (h-strip, 48x24) | yes | 3 | ready |
 | Packet projectile | `assets/images/proj_packet.png` | 8x8 | 1 | yes | 4 | ready |
+| Token pickup | `assets/images/pickup_token.png` | 12x12 | 4 (h-strip, 48x12) | yes | 6 | ready |
 
 Assets below are planned by later stages and not loaded yet; they are listed so
 art can be generated ahead of time.
 
 | Asset | Path | Size (px) | Frames | Transparent | Stage | Status |
 |---|---|---|---|---|---|---|
-| Token pickup | `assets/images/pickup_token.png` | 12x12 | 4 (h-strip, 48x12) | yes | 6 | ready |
 | Crawler agent | `assets/images/agent_crawler.png` | 40x40 | 2 (h-strip, 80x40) | yes | 9 | ready |
 | Swarm-let agent | `assets/images/agent_swarmlet.png` | 12x12 | 2 (h-strip, 24x12) | yes | 9 | ready |
 | Injector agent | `assets/images/agent_injector.png` | 28x28 | 2 (h-strip, 56x28) | yes | 9 | ready |

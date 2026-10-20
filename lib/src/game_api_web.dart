@@ -4,6 +4,7 @@ import 'dart:js_interop_unsafe';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
+import 'package:flutter_game/game/token.dart';
 
 @JS('globalThis')
 external JSObject get _globalThis;
@@ -53,6 +54,15 @@ void installGameApi(RogueAgentsGame game) {
                 .map((p) => {'x': p.position.x, 'y': p.position.y})
                 .toList()
             : <Object>[],
+        'tokens': isReady()
+            ? game.world.children
+                .whereType<Token>()
+                .map((t) => {'x': t.position.x, 'y': t.position.y})
+                .toList()
+            : <Object>[],
+        'xp': game.xp,
+        'level': game.level,
+        'tokensCollected': game.tokensCollected,
         'integrity': game.integrity,
         'kills': game.kills,
         'elapsed': game.elapsed,

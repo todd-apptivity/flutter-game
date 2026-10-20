@@ -6,6 +6,7 @@ import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/projectile.dart';
 import 'package:flutter_game/game/rogue_agents_game.dart';
+import 'package:flutter_game/game/token.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Advances [frames] frames, letting the component tree settle between them.
@@ -301,6 +302,93 @@ void main() {
 
       expect(game.integrity, 0);
       expect(game.integrityLost, GameConfig.maxIntegrity);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a dead agent drops a token worth its xp',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      final agent = Agent(
+        spec: agentSpec('scraper'),
+        position: game.player.position + Vector2(300, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      agent.die();
+      await game.ready();
+
+      final tokens = game.world.children.whereType<Token>().toList();
+      expect(tokens, hasLength(1));
+      expect(tokens.single.value, agentSpec('scraper').xp);
+      expect(tokens.single.position, agent.position);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'tokens outside the magnet radius stay put',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      final token = Token(
+        position: game.player.position + Vector2(game.magnetRadius + 60, 0),
+        value: 1,
+      );
+      await game.world.add(token);
+      await game.ready();
+      final start = token.position.clone();
+
+      await tick(game, 30);
+
+      expect(token.position.x, closeTo(start.x, 0.001));
+      expect(game.xp, 0);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a token inside the magnet radius is pulled in and banked',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      await game.world.add(
+        Token(
+          position: game.player.position + Vector2(game.magnetRadius - 10, 0),
+          value: 3,
+        ),
+      );
+      await game.ready();
+
+      await tick(game, 60);
+
+      expect(game.world.children.whereType<Token>(), isEmpty);
+      expect(game.tokensCollected, 1);
+      expect(game.xp, 3);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'banking enough xp raises the clearance tier',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.level, 1);
+      final cost = game.xpForNextLevel;
+
+      game.collectToken(Token(position: Vector2.zero(), value: cost));
+      expect(game.level, 2);
+      expect(game.xp, 0);
+
+      // A single huge pickup can carry more than one level.
+      game.collectToken(
+        Token(position: Vector2.zero(), value: game.xpForNextLevel * 3),
+      );
+      expect(game.level, greaterThanOrEqualTo(3));
+      expect(game.levelProgress, lessThanOrEqualTo(1.0));
     },
   );
 }
