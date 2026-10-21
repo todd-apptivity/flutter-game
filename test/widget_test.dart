@@ -6,7 +6,9 @@ import 'package:flutter_game/config/game_config.dart';
 import 'package:flutter_game/config/upgrades.dart';
 import 'package:flutter_game/config/weapons.dart';
 import 'package:flutter_game/config/waves.dart';
+import 'package:flutter_game/config/palette.dart';
 import 'package:flutter_game/game/agent.dart';
+import 'package:flutter_game/game/effects.dart';
 import 'package:flutter_game/game/injection.dart';
 import 'package:flutter_game/game/orbit_node.dart';
 import 'package:flutter_game/game/projectile.dart';
@@ -1027,6 +1029,132 @@ void main() {
       await tick(game, 180);
       expect(game.world.children.whereType<Agent>(), isNotEmpty);
       expect(game.elapsed, greaterThan(0));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'a kill throws a burst and a hefty hit shows a number',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      final agent = Agent(
+        spec: agentSpec('scraper'),
+        position: game.player.position + Vector2(250, 0),
+      );
+      await game.world.add(agent);
+      await game.ready();
+
+      // A small hit is silent: the arena would be unreadable otherwise.
+      agent.takeDamage(1);
+      await game.ready();
+      expect(game.world.children.whereType<FloatingText>(), isEmpty);
+
+      // A crit always speaks up, however small.
+      agent.takeDamage(1, crit: true);
+      await game.ready();
+      expect(game.world.children.whereType<FloatingText>(), hasLength(1));
+
+      agent.die();
+      await game.ready();
+      expect(game.world.children.whereType<HitBurst>(), hasLength(1));
+      expect(game.world.children.whereType<Token>(), hasLength(1));
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'effects clean themselves up',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      await game.world.addAll([
+        HitBurst(position: Vector2(300, 300), color: Palette.agentEye),
+        FloatingText(
+          text: '42',
+          position: Vector2(300, 300),
+          color: Palette.hudText,
+        ),
+      ]);
+      await game.ready();
+
+      await tick(game, 90);
+
+      expect(game.world.children.whereType<HitBurst>(), isEmpty);
+      expect(game.world.children.whereType<FloatingText>(), isEmpty);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'taking damage shakes the camera and it settles back',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      final home = GameConfig.designSize / 2;
+      expect(game.camera.viewfinder.position, home);
+
+      game.damagePlayer(20);
+      await tick(game, 2);
+      expect(game.camera.viewfinder.position, isNot(home));
+
+      await tick(game, 60);
+      expect(game.camera.viewfinder.position, home);
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'the Orchestrator arrives once, on the clock',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+      expect(game.boss, isNull);
+
+      game.elapsed = GameConfig.bossTime + 0.1;
+      await tick(game, 2);
+
+      final boss = game.boss;
+      expect(boss, isNotNull);
+      expect(boss!.spec.isBoss, isTrue);
+      expect(game.waveBanner, 'THE ORCHESTRATOR HAS JOINED');
+
+      // It does not come back every frame.
+      await tick(game, 120);
+      expect(
+        game.world.children.whereType<Agent>().where((a) => a.spec.isBoss),
+        hasLength(1),
+      );
+
+      // Killing it clears the bar and announces it.
+      boss.die();
+      await game.ready();
+      expect(game.boss, isNull);
+      expect(game.waveBanner, 'ORCHESTRATOR TERMINATED');
+    },
+  );
+
+  testWithGame<RogueAgentsGame>(
+    'restarting re-arms the boss and clears leftover effects',
+    RogueAgentsGame.new,
+    (game) async {
+      await game.ready();
+
+      game.elapsed = GameConfig.bossTime + 0.1;
+      await tick(game, 2);
+      expect(game.boss, isNotNull);
+
+      game.damagePlayer(9999);
+      await game.restart();
+      await game.ready();
+
+      expect(game.boss, isNull);
+      expect(game.world.children.whereType<HitBurst>(), isEmpty);
+      expect(game.world.children.whereType<FloatingText>(), isEmpty);
+      expect(game.spawner.bossSpawned, isFalse);
+
+      // And it can arrive again in the new run.
+      game.elapsed = GameConfig.bossTime + 0.1;
+      await tick(game, 2);
+      expect(game.boss, isNotNull);
     },
   );
 }

@@ -54,6 +54,34 @@ class Hud extends PositionComponent with HasGameReference<RogueAgentsGame> {
     _renderKills(canvas);
     _renderExperience(canvas);
     _renderWaveBanner(canvas);
+    _renderBossBar(canvas);
+  }
+
+  /// A wide health bar for the Orchestrator, only while it is alive.
+  void _renderBossBar(Canvas canvas) {
+    final boss = game.boss;
+    if (boss == null || !boss.isMounted) return;
+
+    const width = 620.0;
+    const height = 16.0;
+    final left = (GameConfig.designWidth - width) / 2;
+    const top = GameConfig.designHeight - 96.0;
+    final fraction = (boss.hp / boss.spec.hp).clamp(0.0, 1.0);
+    final back = Rect.fromLTWH(left, top, width, height);
+
+    _label.render(
+      canvas,
+      boss.spec.name.toUpperCase(),
+      Vector2(GameConfig.designWidth / 2, top - 22),
+      anchor: Anchor.topCenter,
+    );
+    canvas
+      ..drawRect(back, _barBack)
+      ..drawRect(
+        Rect.fromLTWH(left, top, width * fraction, height),
+        Paint()..color = Palette.agentEye,
+      )
+      ..drawRect(back, _barEdge);
   }
 
   /// Announces a new wave, fading out over its last second.

@@ -21,9 +21,10 @@ combination of present/missing assets runs.
 | Crawler agent | `assets/images/agent_crawler.png` | 40x40 | 2 (h-strip, 80x40) | yes | 9 | ready |
 | Injector agent | `assets/images/agent_injector.png` | 28x28 | 2 (h-strip, 56x28) | yes | 9 | ready |
 | Rate Limiter node | `assets/images/orbit_node.png` | 11x11 | 1 | yes | 10 | **placeholder** |
+| Orchestrator boss | `assets/images/agent_orchestrator.png` | 64x64 | 2 (h-strip, 128x64) | yes | 12 | **placeholder** |
 
-Every asset above is loaded by the game today. `orbit_node.png` is the only one
-still missing; the game draws a shape for it until it arrives.
+Every asset above is loaded by the game today. `orbit_node.png` and
+`agent_orchestrator.png` are the only ones still missing; the game draws a shape for it until it arrives.
 
 ## Delivered artwork
 
@@ -81,6 +82,12 @@ red eye #bc2222, small antenna. Frames alternate a charging glow in the barrel."
 **orbit_node.png** — "Pixel art, single 11x11 frame, transparent background. A small aqua #20b1b3
 throttle node: a bright diamond core with a thin white highlight and two short trailing arc marks
 on one side suggesting rotation. Crisp 1px outline, no anti-aliasing, no background."
+
+**agent_orchestrator.png** — "Pixel art sprite sheet, 2 frames horizontal, each 64x64,
+transparent background. A huge menacing boss robot: a central dark steel chassis with heavy
+shoulder plating, a single massive glowing red eye #bc2222 behind a cracked visor, and four
+small satellite drones tethered around it by thin red beams. Frames alternate the eye's glow
+intensity and the drones' positions. Imposing silhouette, crisp 1px outline, no anti-aliasing."
 
 **pickup_token.png** — "Pixel art sprite sheet, 4 frames horizontal, each 12x12, transparent
 background. A spinning aqua #20b1b3 hexagonal token coin with a white highlight, shown rotating

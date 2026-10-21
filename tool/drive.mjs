@@ -529,6 +529,56 @@ let ringRadius = 0;
   }
 }
 
+// The Orchestrator must arrive on the clock, exactly once, with a health bar.
+{
+  await page.evaluate(() => {
+    rogueAgent.setIntegrity(100);
+    rogueAgent.setClock(299);
+  });
+  await settle(2000);
+  await keepAlive();
+
+  const state = await page.evaluate(() => rogueAgent.state());
+  const bosses = state.agents.filter((a) => a.id === 'orchestrator');
+  if (bosses.length !== 1 || !state.boss) {
+    problems.push(`expected exactly one Orchestrator, saw ${bosses.length}`);
+  } else {
+    console.log(
+      `✓ the Orchestrator arrived (${state.boss.hp}/${state.boss.maxHp} hp)`,
+    );
+    await page.screenshot({ path: path.join(BUILD, 'boss.png') });
+  }
+
+  // It should take damage rather than being untouchable or instantly dying.
+  // The boss walks in from off-arena and the defenses ignore anything out
+  // there, so give it time to arrive and steer the player at it.
+  let later = state;
+  for (let i = 0; i < 12; i++) {
+    const s = await page.evaluate(() => rogueAgent.state());
+    const boss = s.agents.find((a) => a.id === 'orchestrator');
+    if (boss) {
+      await page.mouse.move(
+        Math.max(60, Math.min(1220, boss.x)),
+        Math.max(60, Math.min(660, boss.y)),
+        { steps: 4 },
+      );
+    }
+    await settle(1200);
+    await keepAlive();
+    later = await page.evaluate(() => rogueAgent.state());
+    if (later.boss && later.boss.hp < state.boss.hp) break;
+  }
+  if (later.boss && later.boss.hp >= state.boss.hp) {
+    problems.push('the Orchestrator took no damage in 4s');
+  } else {
+    console.log('✓ the Orchestrator is being worn down');
+  }
+  const stillOne = later.agents.filter((a) => a.id === 'orchestrator').length;
+  if (stillOne > 1) {
+    problems.push(`the Orchestrator respawned (${stillOne} on the field)`);
+  }
+}
+
 await settle(500);
 const shot = path.join(BUILD, 'stage.png');
 await page.screenshot({ path: shot });

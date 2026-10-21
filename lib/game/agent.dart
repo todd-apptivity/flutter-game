@@ -30,10 +30,11 @@ class Agent extends PositionComponent with HasGameReference<RogueAgentsGame> {
   double get hitRadius => size.x * 0.42;
 
   /// Applies [amount] damage, flashing white and dying at zero.
-  void takeDamage(double amount) {
+  void takeDamage(double amount, {bool crit = false}) {
     if (isRemoving) return;
     hp -= amount;
     _flash = GameConfig.hitFlashDuration;
+    game.onAgentHit(this, amount, crit: crit);
     if (hp <= 0) die();
   }
 

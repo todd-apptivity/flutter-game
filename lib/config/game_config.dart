@@ -65,6 +65,13 @@ class GameConfig {
   /// happened to land as you died does not skip past it.
   static const gameOverArmingDelay = 0.9;
 
+  /// Hits below this never show a damage number, so the arena does not fill
+  /// with text. Crits always show one.
+  static const damageNumberThreshold = 12.0;
+
+  /// Run time at which the Orchestrator arrives, once per run.
+  static const bossTime = 300.0;
+
   /// How long a wave-change banner stays on screen.
   static const waveBannerDuration = 3.2;
 

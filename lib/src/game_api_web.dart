@@ -91,6 +91,9 @@ void installGameApi(RogueAgentsGame game) {
                 : <Object>[],
             'weapons': game.weapons.map((w) => w.spec.id).toList(),
             'over': game.isOver,
+            'boss': game.boss == null
+                ? null
+                : {'hp': game.boss!.hp, 'maxHp': game.boss!.spec.hp},
             'canRedeploy': game.gameOverOverlay.isArmed,
             'tokensCollected': game.tokensCollected,
             'integrity': game.integrity,

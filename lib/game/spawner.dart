@@ -28,6 +28,9 @@ class Spawner extends Component with HasGameReference<RogueAgentsGame> {
   /// Live agents, used for the cap and the HUD.
   int get agentCount => game.world.children.whereType<Agent>().length;
 
+  /// The boss is a one-off on the clock, not a wave-table entry.
+  bool bossSpawned = false;
+
   @override
   void update(double dt) {
     final current = wave;
@@ -35,6 +38,13 @@ class Spawner extends Component with HasGameReference<RogueAgentsGame> {
       game.onWaveChanged(current);
     }
     _lastWave = current;
+
+    // After the wave check, so the boss banner is not immediately overwritten
+    // by the wave that happens to start at the same moment.
+    if (!bossSpawned && game.elapsed >= GameConfig.bossTime) {
+      bossSpawned = true;
+      game.onBossArrived(spawn(agentSpec('orchestrator')));
+    }
 
     _cooldown -= dt;
     if (_cooldown > 0) return;

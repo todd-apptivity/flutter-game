@@ -39,6 +39,7 @@ class AgentSpec {
     this.attackCooldown = 2,
     this.projectileSpeed = 200,
     this.projectileDamage = 0,
+    this.isBoss = false,
   });
 
   /// Stable key, also used in logs and the HUD.
@@ -85,6 +86,9 @@ class AgentSpec {
   /// Speed and damage of this agent's own projectile.
   final double projectileSpeed;
   final double projectileDamage;
+
+  /// Bosses get a health bar, a bigger death, and never spawn from the table.
+  final bool isBoss;
 
   bool get isRanged =>
       behavior == AgentBehavior.ranged && projectileDamage > 0;
@@ -148,6 +152,23 @@ const agentCatalog = <AgentSpec>[
     projectileSpeed: 260,
     projectileDamage: 9,
     spritePath: 'agent_injector.png',
+  ),
+  AgentSpec(
+    id: 'orchestrator',
+    name: 'The Orchestrator',
+    blurb: 'The scheduler behind every rogue agent. It has your root key.',
+    hp: 1400,
+    speed: 54,
+    damage: 34,
+    xp: 60,
+    frameSize: 64,
+    isBoss: true,
+    behavior: AgentBehavior.ranged,
+    preferredRange: 210,
+    attackCooldown: 1.15,
+    projectileSpeed: 250,
+    projectileDamage: 14,
+    spritePath: 'agent_orchestrator.png',
   ),
 ];
 

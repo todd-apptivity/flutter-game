@@ -16,6 +16,7 @@ import 'package:flutter_game/game/agent.dart';
 import 'package:flutter_game/game/arena.dart';
 import 'package:flutter_game/game/combat.dart';
 import 'package:flutter_game/game/draft_overlay.dart';
+import 'package:flutter_game/game/effects.dart';
 import 'package:flutter_game/game/game_over_overlay.dart';
 import 'package:flutter_game/game/injection.dart';
 import 'package:flutter_game/game/orbit_node.dart';
@@ -136,6 +137,12 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   /// True once integrity has run out. The run is over until [restart].
   bool isOver = false;
 
+  /// The Orchestrator while it is alive, for the boss health bar.
+  Agent? boss;
+
+  /// Camera shake, added in [onLoad].
+  late final ScreenShake shake;
+
   /// Anything that stops the arena advancing.
   bool get isFrozen => isDrafting || isOver;
 
@@ -171,7 +178,9 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     draftOverlay = DraftOverlay();
     gameOverOverlay = GameOverOverlay();
 
-    await world.addAll([arena, input, player, spawner, Combat()]);
+    shake = ScreenShake();
+
+    await world.addAll([arena, input, player, spawner, Combat(), shake]);
     await camera.viewport.addAll([Hud(), draftOverlay, gameOverOverlay]);
     await equip(weaponSpec('packet_cannon'));
   }
@@ -216,6 +225,24 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     integrity -= applied;
     integrityLost += applied;
 
+    // Shake scales with the size of the hit, so a Crawler landing on you
+    // reads very differently from a Swarm-let brushing past.
+    shake.shake(amplitude: 4 + applied * 0.35);
+    world.addAll([
+      HitBurst(
+        position: player.position.clone(),
+        color: Palette.agentEye,
+        count: 10,
+        speed: 150,
+      ),
+      FloatingText(
+        text: '-${applied.round()}',
+        position: player.position + Vector2(0, -player.size.y * 0.5),
+        color: Palette.agentEye,
+        fontSize: 22,
+      ),
+    ]);
+
     if (integrity <= 0) endRun();
   }
 
@@ -224,6 +251,17 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     if (isOver) return;
     isOver = true;
     integrity = 0;
+    shake.shake(amplitude: 26, duration: 0.6);
+    world.add(
+      HitBurst(
+        position: player.position.clone(),
+        color: Palette.player,
+        count: 48,
+        speed: 300,
+        life: 0.9,
+        pixel: 4,
+      ),
+    );
 
     // A draft left open would fight the game-over screen for the same input.
     offered.clear();
@@ -249,6 +287,11 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     gameOverOverlay.hide();
     draftOverlay.hide();
 
+    // Flush pending adds first: the death burst and damage numbers from the
+    // final frame are still queued, and a sweep over `children` cannot see
+    // them — they would mount into the fresh run.
+    await ready();
+
     for (final component in world.children.toList()) {
       if (component is Agent ||
           component is Projectile ||
@@ -256,6 +299,8 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
           component is Token ||
           component is OrbitNode ||
           component is Weapon ||
+          component is HitBurst ||
+          component is FloatingText ||
           component is Spawner) {
         component.removeFromParent();
       }
@@ -290,6 +335,7 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
 
     waveBanner = null;
     waveBannerTimer = 0;
+    boss = null;
 
     player
       ..position = GameConfig.designSize / 2
@@ -304,10 +350,52 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
     isOver = false;
   }
 
+  /// Called by an agent every time it takes damage.
+  ///
+  /// Damage numbers are deliberately rationed: every packet on every agent
+  /// turns the arena into a wall of text. Only crits and genuinely big hits
+  /// get a number.
+  void onAgentHit(Agent agent, double amount, {bool crit = false}) {
+    if (!crit && amount < GameConfig.damageNumberThreshold) return;
+    world.add(
+      FloatingText(
+        text: crit ? '${amount.round()}!' : '${amount.round()}',
+        position: agent.position + Vector2(0, -agent.size.y * 0.45),
+        color: crit ? Palette.playerCore : Palette.hudText,
+        fontSize: crit ? 26 : 19,
+      ),
+    );
+  }
+
   /// Called by an agent as it dies.
   void onAgentKilled(Agent agent) {
     kills++;
-    world.add(Token(position: agent.position.clone(), value: agent.spec.xp));
+    world.addAll([
+      Token(position: agent.position.clone(), value: agent.spec.xp),
+      HitBurst(
+        position: agent.position.clone(),
+        color: agent.spec.eyeColor,
+        count: agent.spec.isBoss ? 60 : 9,
+        speed: agent.spec.isBoss ? 330 : 170,
+        life: agent.spec.isBoss ? 0.9 : 0.38,
+        pixel: agent.spec.isBoss ? 5 : 3,
+      ),
+    ]);
+
+    if (agent.spec.isBoss) {
+      shake.shake(amplitude: 22, duration: 0.8);
+      waveBanner = 'ORCHESTRATOR TERMINATED';
+      waveBannerTimer = GameConfig.waveBannerDuration;
+      boss = null;
+    }
+  }
+
+  /// Called by the spawner when the Orchestrator arrives.
+  void onBossArrived(Agent agent) {
+    boss = agent;
+    waveBanner = 'THE ORCHESTRATOR HAS JOINED';
+    waveBannerTimer = GameConfig.waveBannerDuration;
+    shake.shake(amplitude: 14, duration: 0.7);
   }
 
   /// Called by a token as it is absorbed.
@@ -325,6 +413,17 @@ class RogueAgentsGame extends FlameGame with KeyboardEvents {
   void levelUp() {
     level++;
     pendingLevelUps++;
+    world.add(
+      FloatingText(
+        text: 'TIER $level',
+        position: player.position + Vector2(0, -player.size.y * 0.8),
+        color: Palette.playerCore,
+        fontSize: 30,
+        life: 1.1,
+        rise: 70,
+        weight: FontWeight.w900,
+      ),
+    );
     if (!isDrafting) openDraft();
   }
 

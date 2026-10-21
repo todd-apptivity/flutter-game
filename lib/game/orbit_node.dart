@@ -65,7 +65,10 @@ class OrbitNode extends PositionComponent
       if (agent.position.distanceToSquared(position) > reach * reach) continue;
 
       final crit = game.rollCrit();
-      agent.takeDamage(crit ? weapon.damage * game.critMultiplier : weapon.damage);
+      agent.takeDamage(
+        crit ? weapon.damage * game.critMultiplier : weapon.damage,
+        crit: crit,
+      );
       _cooldowns[agent] = spec.hitCooldown;
     }
   }

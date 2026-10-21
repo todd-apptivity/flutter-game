@@ -55,7 +55,7 @@ class Combat extends Component with HasGameReference<RogueAgentsGame> {
           continue;
         }
 
-        agent.takeDamage(shot.damage);
+        agent.takeDamage(shot.damage, crit: shot.isCrit);
         shot.registerHit(agent);
         // Pierce lets a packet carry on through the next agent behind it.
         if (shot.pierce <= 0) {
